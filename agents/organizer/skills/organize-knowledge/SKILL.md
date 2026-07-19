@@ -36,7 +36,7 @@ description: 对知识内容进行摘要、分类和标签生成。
 
 完成摘要、分类和标签生成后，必须调用：
 
-`/home/czk/projects/ClawNote/scripts/knowledge_db.py add`
+`python3 ../../scripts/knowledge_db.py add`
 
 需要传入：
 

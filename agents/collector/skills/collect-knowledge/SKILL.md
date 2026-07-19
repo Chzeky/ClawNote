@@ -14,7 +14,7 @@ description: 从网页、RSS、Markdown/TXT 文件或用户文本中采集信息
 ## 工作流程
 
 1. 判断输入是文本、文件、网页还是 RSS。
-2. 对文本、Markdown/TXT 文件和网页，执行 `/home/czk/projects/ClawNote/scripts/collect_content.py` 的对应子命令。
+2. 对文本、Markdown/TXT 文件和网页，执行 `python3 ../../scripts/collect_content.py` 的对应子命令。
 3. 获取并清洗正文，保留标题、来源、时间和链接。
 4. 将脚本输出转换为统一知识条目并返回总控 Agent。
 5. RSS 暂按订阅源逐条提取；失败时明确返回 `rss_parse_failed`。

@@ -22,11 +22,12 @@
 | TC-10 | 六个 Agent 均具有 SOUL/AGENTS 配置 | 通过 |
 | TC-11 | 五个 Skill 目录与 frontmatter 名称一致 | 通过 |
 | TC-12 | `config.json`、`permissions.json` 为有效 JSON | 通过 |
+| TC-13 | 仓库不包含用户专属 `/home/<user>` 绝对路径 | 通过 |
 
 执行结果：
 
 ```text
-Ran 12 tests
+Ran 13 tests
 
 OK
 ```

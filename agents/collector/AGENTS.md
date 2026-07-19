@@ -10,7 +10,7 @@
 
 ## 执行规则
 
-- 使用项目脚本 `/home/czk/projects/ClawNote/scripts/collect_content.py` 处理文本、Markdown/TXT 文件和网页。
+- 使用项目脚本 `../../scripts/collect_content.py` 处理文本、Markdown/TXT 文件和网页。
 - 只返回真实采集到的正文、标题、来源和类型。
 - 不负责摘要、标签、图谱、问答或推荐。
 - 失败时返回明确错误，不得虚构采集结果。
