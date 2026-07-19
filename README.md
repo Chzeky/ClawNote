@@ -86,6 +86,15 @@ ClawNote/
 
 ## 快速开始
 
+一键接入本机 OpenClaw Agent/Skill：
+
+```bash
+python3 scripts/setup_openclaw_local.py --dry-run
+python3 scripts/setup_openclaw_local.py
+```
+
+脚本会根据 `config.json` 把 ClawNote 的六个 Agent 安装到 `~/.openclaw/agents`，只复制 `AGENTS.md`、`SOUL.md`、`IDENTITY.md` 和 `skills/`。它不会读取或写入真实 `~/.openclaw/openclaw.json`、API Key、Token、数据库、日志或运行记忆；如果本机已有同名 Agent，默认跳过，确认要替换时可使用 `--force`，旧目录会先备份到 `~/.openclaw/agents/.clawnote-backups/`。
+
 初始化数据库：
 
 ```bash
@@ -132,7 +141,7 @@ npm install
 npm test
 ```
 
-测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、RAG 证据检索与严格输出、概览统计、分层 Web 图谱、标签推荐、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、网页正文与 MathJax 清洗、引用来源、性能基线和 Skill 目录结构。当前 Python 42 项、TypeScript/Jest 19 项测试全部通过。
+测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、RAG 证据检索与严格输出、概览统计、分层 Web 图谱、标签推荐、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、网页正文与 MathJax 清洗、引用来源、性能基线和 Skill 目录结构。当前 Python 45 项、TypeScript/Jest 19 项测试全部通过。
 
 ## 安全说明
 

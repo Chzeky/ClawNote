@@ -1,5 +1,6 @@
 import json
 import re
+import runpy
 import unittest
 from pathlib import Path
 
@@ -62,6 +63,23 @@ class ProjectStructureTests(unittest.TestCase):
                 continue
             content = path.read_text(encoding="utf-8")
             self.assertNotIn(forbidden_path, content, str(path))
+
+    def test_openclaw_setup_script_copies_only_safe_agent_payload(self):
+        script_globals = runpy.run_path(str(PROJECT_ROOT / "scripts" / "setup_openclaw_local.py"))
+        safe_files = set(script_globals["SAFE_AGENT_FILES"])
+        runtime_names = set(script_globals["RUNTIME_NAMES"])
+
+        self.assertEqual({"AGENTS.md", "SOUL.md", "IDENTITY.md"}, safe_files)
+        for unsafe_name in {
+            "HEARTBEAT.md",
+            "USER.md",
+            "TOOLS.md",
+            "MEMORY.md",
+            "openclaw-workspace-state.json",
+            "memory",
+            "archive",
+        }:
+            self.assertIn(unsafe_name, runtime_names)
 
 
 if __name__ == "__main__":
