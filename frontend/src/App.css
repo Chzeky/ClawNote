@@ -720,7 +720,43 @@ main > section {
 }
 
 .qa-heading {
+  align-items: center;
   margin-bottom: 8px;
+}
+
+.qa-mode-control {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(112px, 1fr));
+  gap: 3px;
+  padding: 3px;
+  background: #efecf1;
+  border-radius: 6px;
+}
+
+.qa-mode-control button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.qa-mode-control button.active {
+  color: var(--green-dark);
+  font-weight: 700;
+  background: var(--panel);
+  box-shadow: 0 1px 3px rgb(50 38 56 / 12%);
+}
+
+.qa-mode-control button:disabled {
+  cursor: wait;
+  opacity: 0.64;
 }
 
 .qa-transcript {
@@ -806,6 +842,59 @@ main > section {
 
 .qa-answer-heading small {
   color: var(--muted);
+}
+
+.qa-route {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  margin: 15px 0 4px;
+  padding: 12px 0;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.qa-route-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(130px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 220px;
+  color: var(--green-dark);
+}
+
+.qa-route-step:not(:last-child)::after {
+  position: absolute;
+  top: 50%;
+  right: -17px;
+  color: var(--subtle);
+  content: '→';
+  transform: translateY(-50%);
+}
+
+.qa-route-step > span {
+  display: grid;
+  gap: 2px;
+}
+
+.qa-route-step strong {
+  font-size: 12px;
+}
+
+.qa-route-step small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qa-route-step i {
+  color: var(--amber);
+  font-size: 10px;
+  font-style: normal;
 }
 
 .qa-citations {
@@ -1746,6 +1835,10 @@ main > section {
     min-height: 300px;
   }
 
+  .qa-mode-control {
+    width: 100%;
+  }
+
   .qa-empty,
   .empty-state {
     padding: 64px 16px;
@@ -1754,6 +1847,33 @@ main > section {
   .qa-answer {
     margin-left: 0;
     padding: 15px;
+  }
+
+  .qa-route {
+    display: grid;
+    gap: 18px;
+    overflow: visible;
+  }
+
+  .qa-route-step {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    min-width: 0;
+  }
+
+  .qa-route-step:not(:last-child)::after {
+    top: auto;
+    right: auto;
+    bottom: -16px;
+    left: 4px;
+    content: '↓';
+    transform: none;
+  }
+
+  .qa-route-step small {
+    overflow: visible;
+    line-height: 1.45;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .qa-composer {

@@ -7,6 +7,7 @@ import re
 import uuid
 from collections import OrderedDict
 from contextlib import closing
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -30,10 +31,19 @@ class Citation(BaseModel):
     snippet: str
 
 
+class DispatchStep(BaseModel):
+    agent: str
+    action: str
+    status: Literal["completed"] = "completed"
+    source: Literal["live", "cache", "execution"] = "execution"
+
+
 class QaResponse(BaseModel):
     answer: str
     citations: list[Citation]
     confidence: str
+    mode: Literal["direct", "steward"] = "direct"
+    route: list[DispatchStep] = Field(default_factory=list)
 
 
 class GeneratedAnswer(BaseModel):

@@ -2,6 +2,7 @@ import json
 import sqlite3
 from contextlib import closing
 from types import SimpleNamespace
+from typing import Literal
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,7 @@ from backend.app.insights import (
     recommend_items,
 )
 from backend.app.qa import QaGenerationError, QaResponse, answer_question
+from backend.app.steward import StewardDispatchError, answer_via_steward
 from scripts import collect_content
 from scripts.knowledge_db import connect
 
@@ -46,6 +48,7 @@ class QuestionRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     question: str = Field(min_length=2, max_length=500)
+    mode: Literal["direct", "steward"] = "direct"
 
 
 class UrlCollectRequest(BaseModel):
@@ -150,7 +153,14 @@ async def analyze_knowledge(payload: AnalyzeKnowledgeRequest):
 @app.post("/api/qa", response_model=QaResponse)
 async def ask_knowledge_base(payload: QuestionRequest):
     try:
+        if payload.mode == "steward":
+            return await answer_via_steward(payload.question)
         return await answer_question(payload.question)
+    except StewardDispatchError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="Agent 调度失败，请检查 steward、OpenClaw 和模型连接后重试",
+        ) from error
     except QaGenerationError as error:
         raise HTTPException(
             status_code=502,

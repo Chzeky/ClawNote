@@ -21,7 +21,7 @@ OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
 - `GET /api/recommendations?knowledge_id=5&limit=8`: Jaccard tag recommendations.
 - `GET /api/knowledge?limit=20`: latest knowledge items.
 - `GET /api/search?q=RAG&limit=5`: FTS5 search with safe `LIKE` fallback.
-- `POST /api/qa`: retrieve local evidence and ask the qa Agent for a grounded answer with citations.
+- `POST /api/qa`: retrieve local evidence and ask the qa Agent for a grounded answer with citations. Pass `{"question":"...","mode":"steward"}` to require verified steward dispatch; `mode` defaults to `direct`.
 - `POST /api/knowledge/text`: parameterized text knowledge storage.
 - `POST /api/knowledge/analyze`: isolated organizer Agent draft generation without storage.
 - `POST /api/collect/url`: safely collect public webpage text without storage.
@@ -33,3 +33,5 @@ OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
 Organizer drafts use a bounded in-memory LRU cache keyed by content and title hint. The cache contains no API credentials and is cleared when the backend restarts.
 
 The QA endpoint performs deterministic SQLite evidence retrieval before invoking `clawnote-qa`. Questions and evidence are passed as untrusted JSON data, model output is strictly validated, and citation metadata is always controlled by the backend. If no evidence is found, the endpoint returns a refusal without invoking the model.
+
+Steward mode invokes the real `clawnote-steward` Agent with thinking disabled and a compact routing-only prompt. A stable session avoids repeated cold context, successful route decisions are cached in memory for 15 minutes, and concurrent cold requests share one dispatch call. The API only returns a route trace after the steward decision and qa execution succeed.

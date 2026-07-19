@@ -161,3 +161,11 @@
 - VPN 兼容：自动识别 TUN/Fake-IP DNS 模式，支持 WSL NAT 下域名解析到 `198.18.0.0/15`；显式 Fake-IP、localhost 和真实内网地址仍保持拒绝。
 - 文件上传：TXT/Markdown 上限由 2 MiB 提升到 10 MiB，前端即时校验、后端最终校验；AI 整理仍使用前 20000 字。网页响应上限继续保持 2 MiB。
 - 验证：目标强化学习页面成功提取 4373 字正文；Python 49 项、TypeScript/Jest 19 项、前端 ESLint 和 Vite production build 全部通过。
+
+## 2026-07-19：Web Steward 调度模式
+
+- 模式：智能问答保留快速的“知识问答”，新增“Agent 调度”；后者必须先真实调用 `clawnote-steward`，再由 `clawnote-qa` 基于本地证据回答。
+- 真实性：steward 输出限定为严格 JSON 路由决策，目标 Agent 只允许 `clawnote-qa`；前端轨迹完全来自后端，调度失败或知识库无证据时不伪造 QA Agent 执行记录。
+- 性能：关闭 steward thinking、压缩路由提示、复用稳定会话，并将成功决策缓存 15 分钟；并发冷请求通过异步锁合并，避免重复启动 OpenClaw。
+- 展示：回答内显示 Steward 到 QA Agent 的执行轨迹，并区分“实时”“复用”和“执行”状态；桌面与移动端均使用紧凑双模式控件。
+- 验证：Python 54 项、TypeScript/Jest 19 项、前端 ESLint 和 Vite production build 全部通过。

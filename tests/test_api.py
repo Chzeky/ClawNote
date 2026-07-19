@@ -175,6 +175,33 @@ class KnowledgeApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.json()["citations"][0]["id"], 2)
         answer_mock.assert_awaited_once_with("RAG 是什么？")
 
+    async def test_qa_steward_mode_uses_dispatch_path(self):
+        qa_result = QaResponse(
+            answer="由调度模式生成的回答。",
+            citations=[],
+            confidence="none",
+            mode="steward",
+            route=[{
+                "agent": "clawnote-steward",
+                "action": "识别为知识问答",
+            }, {
+                "agent": "clawnote-qa",
+                "action": "生成回答",
+            }],
+        )
+        with patch(
+            "backend.app.main.answer_via_steward",
+            return_value=qa_result,
+        ) as dispatch_mock:
+            response = await self.client.post(
+                "/api/qa",
+                json={"question": "RAG 是什么？", "mode": "steward"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["mode"], "steward")
+        self.assertEqual(len(response.json()["route"]), 2)
+        dispatch_mock.assert_awaited_once_with("RAG 是什么？")
+
     async def test_qa_rejects_too_short_question(self):
         response = await self.client.post("/api/qa", json={"question": "?"})
         self.assertEqual(response.status_code, 422)

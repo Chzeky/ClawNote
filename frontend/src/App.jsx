@@ -10,7 +10,12 @@ import KnowledgeBubbleGraph from './KnowledgeBubbleGraph'
 const API_BASE = 'http://127.0.0.1:8000'
 const IMPORT_DRAFT_KEY = 'clawnote.import-draft'
 const REQUEST_TIMEOUT_MS = 20000
+const STEWARD_REQUEST_TIMEOUT_MS = 150000
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+const AGENT_LABELS = {
+  'clawnote-steward': 'Steward',
+  'clawnote-qa': 'QA Agent',
+}
 
 const EMPTY_CREATE_FORM = {
   title: '',
@@ -207,6 +212,7 @@ function App() {
   })
   const [question, setQuestion] = useState('')
   const [qaTurns, setQaTurns] = useState([])
+  const [qaMode, setQaMode] = useState('direct')
   const [asking, setAsking] = useState(false)
   const [qaError, setQaError] = useState('')
 
@@ -625,14 +631,15 @@ function App() {
   async function submitQuestion(questionText) {
     const nextQuestion = questionText.trim()
     if (!nextQuestion || asking) return
+    const requestMode = qaMode
     setAsking(true)
     setQaError('')
     try {
       const response = await fetchWithTimeout(`${API_BASE}/api/qa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: nextQuestion }),
-      })
+        body: JSON.stringify({ question: nextQuestion, mode: requestMode }),
+      }, requestMode === 'steward' ? STEWARD_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS)
       const data = await response.json()
       if (!response.ok) throw new Error(responseError(data, response.status))
       setQaTurns((current) => [...current, {
@@ -814,14 +821,28 @@ function App() {
         <section className="qa-page">
           <div className="section-heading qa-heading">
             <div><h2>智能问答</h2><span>基于 {items.length} 条个人知识</span></div>
+            <div className="qa-mode-control" role="group" aria-label="问答模式">
+              <button type="button" className={qaMode === 'direct' ? 'active' : ''}
+                onClick={() => setQaMode('direct')} disabled={asking}>
+                <BookOpen size={16} />知识问答
+              </button>
+              <button type="button" className={qaMode === 'steward' ? 'active' : ''}
+                onClick={() => setQaMode('steward')} disabled={asking}>
+                <Network size={16} />Agent 调度
+              </button>
+            </div>
           </div>
 
           <div className="qa-transcript" aria-live="polite">
             {qaTurns.length === 0 && !asking && (
               <div className="qa-empty">
-                <MessageCircle size={28} aria-hidden="true" />
-                <strong>向个人知识库提问</strong>
-                <span>回答只使用已保存的知识，并附上可核验的来源。</span>
+                {qaMode === 'steward'
+                  ? <Network size={28} aria-hidden="true" />
+                  : <MessageCircle size={28} aria-hidden="true" />}
+                <strong>{qaMode === 'steward' ? '由 Steward 调度回答' : '向个人知识库提问'}</strong>
+                <span>{qaMode === 'steward'
+                  ? '调度成功后由专业 Agent 生成带来源的回答。'
+                  : '回答只使用已保存的知识，并附上可核验的来源。'}</span>
               </div>
             )}
 
@@ -834,6 +855,21 @@ function App() {
                     <small>{turn.confidence === 'high' ? '高置信度' :
                       turn.confidence === 'medium' ? '中等置信度' : '未找到依据'}</small>
                   </div>
+                  {turn.route?.length > 0 && (
+                    <div className="qa-route" aria-label="Agent 调度轨迹">
+                      {turn.route.map((step) => (
+                        <div className="qa-route-step" key={`${turn.id}-${step.agent}`}>
+                          <Network size={14} aria-hidden="true" />
+                          <span>
+                            <strong>{AGENT_LABELS[step.agent] || step.agent}</strong>
+                            <small>{step.action}</small>
+                          </span>
+                          <i>{step.source === 'cache' ? '复用' :
+                            step.source === 'live' ? '实时' : '执行'}</i>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <p>{turn.answer}</p>
                   {turn.citations.length > 0 && (
                     <div className="qa-citations">
@@ -853,7 +889,9 @@ function App() {
 
             {asking && (
               <div className="qa-pending">
-                <Sparkles size={18} />正在检索个人知识库并生成回答...
+                <Sparkles size={18} />{qaMode === 'steward'
+                  ? 'Steward 正在调度专业 Agent...'
+                  : '正在检索个人知识库并生成回答...'}
               </div>
             )}
           </div>
