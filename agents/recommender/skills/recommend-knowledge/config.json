@@ -1,0 +1,10 @@
+{
+  "pythonCommand": "python3",
+  "scriptPath": "scripts/knowledge_db.py",
+  "candidateLimit": 100,
+  "defaultLimit": 5,
+  "maxLimit": 20,
+  "minimumSimilarity": 0.01,
+  "timeoutMs": 10000,
+  "maxOutputBytes": 2097152
+}

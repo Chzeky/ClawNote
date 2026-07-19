@@ -1,0 +1,18 @@
+{
+  "name": "clawnote-skill-runtime",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "test": "npm run typecheck:skills && npm run test:skills",
+    "test:skills": "jest --runInBand",
+    "test:skills:coverage": "jest --runInBand --coverage",
+    "typecheck:skills": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/jest": "29.5.14",
+    "@types/node": "22.15.3",
+    "jest": "29.7.0",
+    "ts-jest": "29.2.5",
+    "typescript": "5.8.3"
+  }
+}

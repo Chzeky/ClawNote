@@ -1,0 +1,14 @@
+{
+  "knownEntities": [
+    "OpenClaw",
+    "FastAPI",
+    "SQLite",
+    "DeepSeek",
+    "RAG",
+    "知识图谱",
+    "关键词检索",
+    "向量检索"
+  ],
+  "maxEntities": 30,
+  "maxRelations": 100
+}

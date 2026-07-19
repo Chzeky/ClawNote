@@ -1,0 +1,6 @@
+{
+  "pythonCommand": "python3",
+  "scriptPath": "scripts/collect_content.py",
+  "timeoutMs": 20000,
+  "maxOutputBytes": 2097152
+}

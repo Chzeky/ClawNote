@@ -11,7 +11,7 @@ ClawNote 是一个基于 OpenClaw 多 Agent 协作的个人智能知识管家。
                                       -> qa 检索 -> RAG 回答与引用
 ```
 
-网页/RSS、图谱和推荐已完成 Agent/Skill 设计，其中网页与文本采集已有确定性脚本；图谱持久化、RSS 定时任务、推荐算法和 Web 前端属于下一阶段。
+网页与文本采集已有确定性脚本；知识图谱具备基于实体共现和原句证据的基线实现，推荐具备标签 Jaccard 相似度算法。RSS 定时任务、图谱持久化和完整 Web 前端仍在迭代。
 
 ## Agent 与 Skill
 
@@ -35,9 +35,29 @@ ClawNote 是一个基于 OpenClaw 多 Agent 协作的个人智能知识管家。
 | Must | 基础检索 | SQLite FTS5 已实现 |
 | Must | RAG 问答 | qa Skill 已实现，要求引用知识编号 |
 | Should | RSS 采集 | Skill 已定义，定时执行待完善 |
-| Should | 知识图谱 | Agent/Skill 已定义，持久化待完善 |
+| Should | 知识图谱 | 实体共现基线已实现，持久化待完善 |
 | Should | 问答引用来源 | 已实现知识编号、标题和来源规则 |
-| Should | 标签相似度推荐 | Agent/Skill 已定义，算法待完善 |
+| Should | 标签相似度推荐 | Jaccard 标签相似度与排序已实现 |
+
+## Skill 开发规范
+
+每个业务 Skill 同时保留两层实现：
+
+- `SKILL.md`：OpenClaw 原生能力说明，用于自动发现和 Agent 行为约束。
+- TypeScript 执行层：符合课程规范，提供强类型、配置分离、错误日志和 Jest 测试。
+
+```text
+skills/<kebab-case-name>/
+├── SKILL.md
+├── index.ts
+├── types.ts
+├── utils.ts
+├── config.json
+├── README.md
+└── __tests__/index.test.ts
+```
+
+collector、organizer 和 qa 使用 `execFile` 参数数组调用现有 Python 工具，不拼接 shell 命令；graph 和 recommender 使用可重复测试的确定性算法。
 
 ## 目录结构
 
@@ -47,15 +67,20 @@ ClawNote/
 ├── database/init.sql   # SQLite 表、FTS5 索引和同步触发器
 ├── scripts/            # 采集与知识库命令行工具
 ├── tests/              # 自动化测试
+├── skill-tests/        # TypeScript 与 Python 跨语言集成测试
+├── backend/            # FastAPI Web API（开发中）
+├── frontend/           # React Web 界面（开发中）
 ├── docs/               # 开发日志、测试报告和渠道证据
 ├── config.json         # 项目级脱敏配置
-└── permissions.json    # Agent 最小权限策略（脱敏）
+├── permissions.json    # Agent 最小权限策略（脱敏）
+└── package.json        # TypeScript Skill 测试与类型检查
 ```
 
 ## 环境要求
 
 - WSL/Ubuntu
 - Python 3.10+
+- Node.js 20+
 - SQLite 3（需启用 FTS5）
 - OpenClaw 2026.6.11+
 
@@ -94,11 +119,20 @@ python3 scripts/knowledge_db.py search --query "RAG" --limit 5
 
 ## 测试
 
+Python 核心逻辑与项目结构：
+
 ```bash
 python3 -m unittest discover -s tests -v
 ```
 
-测试覆盖数据库初始化、参数化写入、SQL 注入防护、FTS5 检索、中文 `LIKE` 兜底检索、内容采集和 Skill 目录结构。
+TypeScript Skill：
+
+```bash
+npm install
+npm test
+```
+
+测试覆盖数据库初始化、参数化写入、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、内容采集、引用来源、图谱关系、标签推荐、性能基线和 Skill 目录结构。
 
 ## 安全说明
 

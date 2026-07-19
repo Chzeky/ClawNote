@@ -1,0 +1,8 @@
+{
+  "pythonCommand": "python3",
+  "scriptPath": "scripts/knowledge_db.py",
+  "defaultLimit": 5,
+  "maxLimit": 10,
+  "timeoutMs": 10000,
+  "maxOutputBytes": 2097152
+}

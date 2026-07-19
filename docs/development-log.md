@@ -60,3 +60,12 @@
 - 问题：Agent 指令中包含开发者专属的绝对 home 路径，其他 WSL 用户无法直接运行。
 - 解决：统一改为从 Agent workspace 出发的 `../../scripts/...` 相对路径。
 - 验证：增加仓库路径可移植性测试，确保提交文件不再包含用户专属 home 路径。
+
+## 2026-07-19：课程 TypeScript Skill 规范对齐
+
+- 差异：OpenClaw 使用 `SKILL.md` 发现能力，课程规范还要求 `index.ts`、`types.ts`、`utils.ts`、`README.md` 和独立配置。
+- 决策：保留原生 `SKILL.md`，为五个业务 Skill 增加 TypeScript 可执行层，形成双层兼容结构。
+- 复用：collector、organizer 和 qa 使用 `execFile` 参数数组调用既有 Python 工具，避免 shell 字符串拼接和重复实现数据库逻辑。
+- 算法：graph 增加带原句证据的实体共现基线；recommender 增加标签 Jaccard 相似度、排除和稳定排序。
+- 测试：新增 Jest 单元、边界、安全、性能测试及 TypeScript 到 Python 的真实采集集成测试。
+- 结果：TypeScript 严格类型检查通过，6 个 Jest 套件共 19 项测试通过，Python 回归测试增至 14 项并全部通过。

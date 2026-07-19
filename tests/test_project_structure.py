@@ -29,18 +29,34 @@ class ProjectStructureTests(unittest.TestCase):
             self.assertRegex(content, rf"(?m)^name:\s*{re.escape(skill_name)}$")
             self.assertRegex(content, r"(?m)^description:\s*.+$")
 
+    def test_skill_typescript_contract_files_exist(self):
+        required_files = {
+            "SKILL.md",
+            "index.ts",
+            "types.ts",
+            "utils.ts",
+            "config.json",
+            "README.md",
+        }
+        for agent, skill_name in self.EXPECTED_SKILLS.items():
+            skill_dir = PROJECT_ROOT / "agents" / agent / "skills" / skill_name
+            existing_files = {path.name for path in skill_dir.iterdir() if path.is_file()}
+            self.assertTrue(required_files.issubset(existing_files), str(skill_dir))
+            with (skill_dir / "config.json").open(encoding="utf-8") as handle:
+                json.load(handle)
+
     def test_submission_configs_are_valid_json(self):
         for filename in ["config.json", "permissions.json"]:
             with (PROJECT_ROOT / filename).open(encoding="utf-8") as handle:
                 json.load(handle)
 
     def test_repository_has_no_user_specific_home_paths(self):
-        checked_suffixes = {".md", ".json", ".py", ".sql"}
+        checked_suffixes = {".md", ".json", ".py", ".sql", ".ts"}
         forbidden_path = "/" + "home" + "/" + "czk" + "/"
         for path in PROJECT_ROOT.rglob("*"):
             if not path.is_file() or path.suffix not in checked_suffixes:
                 continue
-            if ".git" in path.parts or any(
+            if any(part in {".git", ".venv", "node_modules"} for part in path.parts) or any(
                 part.startswith("skills_backup_") for part in path.parts
             ):
                 continue
