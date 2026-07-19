@@ -9,6 +9,7 @@ import KnowledgeBubbleGraph from './KnowledgeBubbleGraph'
 
 const API_BASE = 'http://127.0.0.1:8000'
 const IMPORT_DRAFT_KEY = 'clawnote.import-draft'
+const REQUEST_TIMEOUT_MS = 20000
 
 const EMPTY_CREATE_FORM = {
   title: '',
@@ -22,7 +23,7 @@ async function requestKnowledge(searchQuery = '') {
   const endpoint = searchQuery
     ? `${API_BASE}/api/search?q=${encodeURIComponent(searchQuery)}&limit=20`
     : `${API_BASE}/api/knowledge?limit=20`
-  const response = await fetch(endpoint)
+  const response = await fetchWithTimeout(endpoint)
   if (!response.ok) throw new Error(`请求失败：${response.status}`)
   const data = await response.json()
   return data.items
@@ -30,8 +31,8 @@ async function requestKnowledge(searchQuery = '') {
 
 async function requestInsights() {
   const [overviewResponse, graphResponse] = await Promise.all([
-    fetch(`${API_BASE}/api/overview`),
-    fetch(`${API_BASE}/api/graph?limit=30`),
+    fetchWithTimeout(`${API_BASE}/api/overview`),
+    fetchWithTimeout(`${API_BASE}/api/graph?limit=30`),
   ])
   if (!overviewResponse.ok || !graphResponse.ok) {
     throw new Error('分析数据加载失败')
@@ -40,7 +41,7 @@ async function requestInsights() {
 }
 
 async function requestRecommendations(knowledgeId) {
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${API_BASE}/api/recommendations?knowledge_id=${knowledgeId}&limit=8`,
   )
   const data = await response.json()
@@ -62,6 +63,21 @@ function responseError(data, status) {
   if (typeof data.detail === 'string') return data.detail
   if (Array.isArray(data.detail)) return data.detail.map((item) => item.msg).join('；')
   return `请求失败：${status}`
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('请求超时，请检查后端服务或网络代理后重试', { cause: error })
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
 }
 
 const EMPTY_SOURCE = {
@@ -106,26 +122,66 @@ function truncateLabel(value, maxLength = 14) {
 }
 
 function graphLayout(nodes) {
-  const knowledge = nodes.filter((node) => node.type === 'knowledge')
-  const concepts = nodes.filter((node) => node.type === 'concept')
   const positions = new Map()
-  knowledge.forEach((node, index) => {
+  const center = nodes.find((node) => node.role === 'focus')
+  const concepts = nodes.filter((node) => node.type === 'concept')
+  const related = nodes.filter((node) => node.type === 'knowledge' && node.role !== 'focus')
+  if (center) positions.set(center.id, { x: 480, y: 260 })
+  concepts.forEach((node, index) => {
+    const angle = -Math.PI / 2 + (index / Math.max(1, concepts.length)) * Math.PI * 2
     positions.set(node.id, {
-      x: 175,
-      y: 46 + index * (420 / Math.max(1, knowledge.length - 1)),
+      x: 480 + Math.cos(angle) * 145,
+      y: 260 + Math.sin(angle) * 125,
     })
   })
-  const columns = [585, 790]
-  concepts.forEach((node, index) => {
-    const column = index % 2
-    const row = Math.floor(index / 2)
-    const rowCount = Math.ceil(concepts.length / 2)
+  related.forEach((node, index) => {
+    const angle = -Math.PI / 2 + (index / Math.max(1, related.length)) * Math.PI * 2
     positions.set(node.id, {
-      x: columns[column],
-      y: 38 + row * (436 / Math.max(1, rowCount - 1)),
+      x: 480 + Math.cos(angle) * 330,
+      y: 260 + Math.sin(angle) * 205,
     })
   })
   return positions
+}
+
+function buildFocusedRelationGraph(graph, knowledgeId) {
+  const focusNode = graph.nodes.find((node) => (
+    node.type === 'knowledge' && node.knowledge_id === knowledgeId
+  ))
+  if (!focusNode) return { nodes: [], links: [] }
+
+  const conceptIds = graph.links
+    .filter((link) => link.type === 'has_concept' && link.source === focusNode.id)
+    .map((link) => link.target)
+    .slice(0, 10)
+  const conceptSet = new Set(conceptIds)
+  const relatedScores = new Map()
+  graph.links
+    .filter((link) => (
+      link.type === 'has_concept' &&
+      conceptSet.has(link.target) &&
+      link.source !== focusNode.id
+    ))
+    .forEach((link) => {
+      relatedScores.set(link.source, (relatedScores.get(link.source) || 0) + 1)
+    })
+  const relatedIds = [...relatedScores.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 8)
+    .map(([id]) => id)
+  const visibleIds = new Set([focusNode.id, ...conceptIds, ...relatedIds])
+  const nodes = graph.nodes
+    .filter((node) => visibleIds.has(node.id))
+    .map((node) => ({
+      ...node,
+      role: node.id === focusNode.id ? 'focus' : relatedIds.includes(node.id) ? 'related' : 'concept',
+    }))
+  const links = graph.links.filter((link) => (
+    link.type === 'has_concept' &&
+    visibleIds.has(link.source) &&
+    conceptSet.has(link.target)
+  ))
+  return { nodes, links }
 }
 
 function App() {
@@ -134,12 +190,14 @@ function App() {
   const [overview, setOverview] = useState(null)
   const [graph, setGraph] = useState(null)
   const [graphMode, setGraphMode] = useState('bubbles')
+  const [graphFocusId, setGraphFocusId] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
   const [insightError, setInsightError] = useState('')
   const [recommendationId, setRecommendationId] = useState(null)
   const [recommendations, setRecommendations] = useState(null)
   const [recommendationLoading, setRecommendationLoading] = useState(false)
   const [recommendationError, setRecommendationError] = useState('')
+  const [recommendationView, setRecommendationView] = useState('path')
   const [query, setQuery] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -203,6 +261,11 @@ function App() {
           ? current
           : bestRecommendationSource(nextItems)
       ))
+      setGraphFocusId((current) => (
+        current && nextItems.some((item) => item.id === current)
+          ? current
+          : bestRecommendationSource(nextItems)
+      ))
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -217,6 +280,7 @@ function App() {
         if (!cancelled) {
           setItems(nextItems)
           setRecommendationId(bestRecommendationSource(nextItems))
+          setGraphFocusId(bestRecommendationSource(nextItems))
         }
       })
       .catch((requestError) => {
@@ -317,7 +381,7 @@ function App() {
     setDetailError('')
     setSelectedItem(null)
     try {
-      const response = await fetch(`${API_BASE}/api/knowledge/${knowledgeId}`)
+      const response = await fetchWithTimeout(`${API_BASE}/api/knowledge/${knowledgeId}`)
       if (!response.ok) throw new Error(`请求失败：${response.status}`)
       const data = await response.json()
       setSelectedItem(data.item)
@@ -383,7 +447,7 @@ function App() {
       let source = EMPTY_SOURCE
 
       if (importMode === 'url') {
-        const collectResponse = await fetch(`${API_BASE}/api/collect/url`, {
+        const collectResponse = await fetchWithTimeout(`${API_BASE}/api/collect/url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: webUrl.trim() }),
@@ -406,7 +470,7 @@ function App() {
         if (!selectedFile) throw new Error('请先选择文件')
         const formData = new FormData()
         formData.append('file', selectedFile)
-        const collectResponse = await fetch(`${API_BASE}/api/collect/file`, {
+        const collectResponse = await fetchWithTimeout(`${API_BASE}/api/collect/file`, {
           method: 'POST',
           body: formData,
         })
@@ -428,7 +492,7 @@ function App() {
       setImportSource(source)
       setProcessingLabel('AI 正在整理...')
 
-      const response = await fetch(`${API_BASE}/api/knowledge/analyze`, {
+      const response = await fetchWithTimeout(`${API_BASE}/api/knowledge/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -459,7 +523,7 @@ function App() {
     setCreating(true)
     setCreateError('')
     try {
-      const response = await fetch(`${API_BASE}/api/knowledge/text`, {
+      const response = await fetchWithTimeout(`${API_BASE}/api/knowledge/text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -506,7 +570,7 @@ function App() {
     setSaving(true)
     setActionError('')
     try {
-      const response = await fetch(`${API_BASE}/api/knowledge/${selectedItem.id}`, {
+      const response = await fetchWithTimeout(`${API_BASE}/api/knowledge/${selectedItem.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -540,7 +604,7 @@ function App() {
     setDeleting(true)
     setActionError('')
     try {
-      const response = await fetch(`${API_BASE}/api/knowledge/${selectedItem.id}`, {
+      const response = await fetchWithTimeout(`${API_BASE}/api/knowledge/${selectedItem.id}`, {
         method: 'DELETE',
       })
       const data = await response.json()
@@ -568,12 +632,16 @@ function App() {
 
   async function askKnowledge(event) {
     event.preventDefault()
-    const nextQuestion = question.trim()
+    submitQuestion(question)
+  }
+
+  async function submitQuestion(questionText) {
+    const nextQuestion = questionText.trim()
     if (!nextQuestion || asking) return
     setAsking(true)
     setQaError('')
     try {
-      const response = await fetch(`${API_BASE}/api/qa`, {
+      const response = await fetchWithTimeout(`${API_BASE}/api/qa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: nextQuestion }),
@@ -593,7 +661,10 @@ function App() {
     }
   }
 
-  const graphPositions = graph ? graphLayout(graph.nodes) : new Map()
+  const relationGraph = graph && graphFocusId
+    ? buildFocusedRelationGraph(graph, graphFocusId)
+    : { nodes: [], links: [] }
+  const graphPositions = graphLayout(relationGraph.nodes)
 
   return (
     <main>
@@ -626,7 +697,12 @@ function App() {
           </div>
 
           {insightLoading && <p className="status-message">正在汇总知识库...</p>}
-          {insightError && <p className="error-message">加载失败：{insightError}</p>}
+          {insightError && (
+            <div className="error-message message-with-action">
+              <span>加载失败：{insightError}</span>
+              <button type="button" className="action-button" onClick={loadInsights}>重试</button>
+            </div>
+          )}
           {overview && !insightLoading && (
             <>
               <div className="stat-grid">
@@ -713,7 +789,13 @@ function App() {
 
         {loading && <p className="status-message">正在加载知识...</p>}
         {notice && <p className="notice-message">{notice}</p>}
-        {error && <p className="error-message">加载失败：{error}</p>}
+        {error && (
+          <div className="error-message message-with-action">
+            <span>加载失败：{error}</span>
+            <button type="button" className="action-button"
+              onClick={() => loadKnowledge(query.trim())}>重试</button>
+          </div>
+        )}
         {!loading && !error && items.length === 0 &&
           <p className="status-message">没有找到相关知识。</p>}
 
@@ -787,7 +869,13 @@ function App() {
             )}
           </div>
 
-          {qaError && <p className="error-message compact-message">问答失败：{qaError}</p>}
+          {qaError && (
+            <div className="error-message compact-message message-with-action">
+              <span>问答失败：{qaError}</span>
+              <button type="button" className="action-button"
+                onClick={() => submitQuestion(question)}>重试</button>
+            </div>
+          )}
           <form className="qa-composer" onSubmit={askKnowledge}>
             <textarea value={question}
               onChange={(event) => setQuestion(event.target.value)}
@@ -807,51 +895,71 @@ function App() {
             <div><span className="eyebrow">KNOWLEDGE GRAPH</span><h2>知识图谱</h2></div>
             {graph && <p>{graph.knowledge_count} 条知识 · {graph.concept_count} 个主题 · {graph.relation_count} 条关系</p>}
           </div>
-          <div className="graph-mode-control" role="group" aria-label="图谱视图">
-            <button type="button" className={graphMode === 'bubbles' ? 'active' : ''}
-              onClick={() => setGraphMode('bubbles')}>分类气泡</button>
-            <button type="button" className={graphMode === 'relations' ? 'active' : ''}
-              onClick={() => setGraphMode('relations')}>关系网络</button>
+          <div className="graph-controls">
+            <div className="graph-mode-control" role="group" aria-label="图谱视图">
+              <button type="button" className={graphMode === 'bubbles' ? 'active' : ''}
+                onClick={() => setGraphMode('bubbles')}>分类地图</button>
+              <button type="button" className={graphMode === 'relations' ? 'active' : ''}
+                onClick={() => setGraphMode('relations')}>关联探索</button>
+            </div>
+            {graphMode === 'relations' && items.length > 0 && (
+              <label htmlFor="graph-focus">中心知识
+                <select id="graph-focus" value={graphFocusId || ''}
+                  onChange={(event) => setGraphFocusId(Number(event.target.value))}>
+                  {items.map((item) => <option value={item.id} key={item.id}>#{item.id} {item.title}</option>)}
+                </select>
+              </label>
+            )}
           </div>
           {insightLoading && <p className="status-message">正在构建知识关系...</p>}
-          {insightError && <p className="error-message">加载失败：{insightError}</p>}
+          {insightError && (
+            <div className="error-message message-with-action">
+              <span>加载失败：{insightError}</span>
+              <button type="button" className="action-button" onClick={loadInsights}>重试</button>
+            </div>
+          )}
           {graph && !insightLoading && graph.nodes.length > 0 && graphMode === 'bubbles' && (
             <KnowledgeBubbleGraph graph={graph} onOpenKnowledge={openDetail} />
           )}
-          {graph && !insightLoading && graph.nodes.length > 0 && graphMode === 'relations' && (
+          {graph && !insightLoading && graphMode === 'relations' && relationGraph.nodes.length > 1 && (
             <div className="graph-workspace">
               <div className="graph-legend">
-                <span><i className="knowledge-dot" />知识条目</span>
+                <span><i className="focus-dot" />中心知识</span>
+                <span><i className="knowledge-dot" />相关知识</span>
                 <span><i className="concept-dot" />主题实体</span>
-                <span><i className="relation-line" />共现关系</span>
+                <span><i className="relation-line" />共享主题</span>
               </div>
               <div className="graph-canvas">
-                <svg viewBox="0 0 960 520" role="img" aria-label="知识与主题关系图">
+                <svg viewBox="0 0 960 520" role="img" aria-label="以中心知识展开的关联探索图">
                   <g className="graph-links">
-                    {graph.links.map((link, index) => {
+                    {relationGraph.links.map((link, index) => {
                       const source = graphPositions.get(link.source)
                       const target = graphPositions.get(link.target)
                       if (!source || !target) return null
                       return <line key={`${link.source}-${link.target}-${index}`}
                         x1={source.x} y1={source.y} x2={target.x} y2={target.y}
-                        className={link.type === 'co_occurs_with' ? 'co-link' : ''} />
+                        className="concept-link" />
                     })}
                   </g>
                   <g className="graph-nodes">
-                    {graph.nodes.map((node) => {
+                    {relationGraph.nodes.map((node) => {
                       const position = graphPositions.get(node.id)
                       if (!position) return null
                       const isKnowledge = node.type === 'knowledge'
+                      const isFocus = node.role === 'focus'
                       return (
                         <g key={node.id} transform={`translate(${position.x} ${position.y})`}
-                          className={isKnowledge ? 'knowledge-node' : 'concept-node'}
-                          onClick={isKnowledge ? () => openDetail(node.knowledge_id) : undefined}>
+                          className={isKnowledge
+                            ? `knowledge-node ${isFocus ? 'focus-node' : 'related-node'}`
+                            : 'concept-node'}
+                          onClick={isKnowledge ? () => setGraphFocusId(node.knowledge_id) : undefined}>
                           <title>{node.label}</title>
                           {isKnowledge
-                            ? <rect x="-124" y="-19" width="248" height="38" rx="6" />
+                            ? <rect x={isFocus ? '-130' : '-110'} y={isFocus ? '-23' : '-18'}
+                              width={isFocus ? '260' : '220'} height={isFocus ? '46' : '36'} rx="6" />
                             : <circle r={Math.min(17, 10 + node.weight * 1.5)} />}
                           <text textAnchor={isKnowledge ? 'middle' : 'start'}
-                            x={isKnowledge ? 0 : 22} y="5">{truncateLabel(node.label, isKnowledge ? 18 : 10)}</text>
+                            x={isKnowledge ? 0 : 22} y="5">{truncateLabel(node.label, isFocus ? 20 : isKnowledge ? 15 : 10)}</text>
                         </g>
                       )
                     })}
@@ -860,6 +968,9 @@ function App() {
               </div>
             </div>
           )}
+          {graph && !insightLoading && graphMode === 'relations' && relationGraph.nodes.length <= 1 && (
+            <p className="status-message">当前知识暂时没有可展开的共享主题。</p>
+          )}
           {graph && graph.nodes.length === 0 && <p className="status-message">知识库为空，暂无可构建的关系。</p>}
         </section>
       )}
@@ -867,7 +978,7 @@ function App() {
       {activeView === 'recommendations' && (
         <section className="recommendation-page">
           <div className="page-heading recommendation-heading">
-            <div><span className="eyebrow">RELATED KNOWLEDGE</span><h2>相关推荐</h2></div>
+            <div><span className="eyebrow">LEARNING GUIDE</span><h2>学习推荐</h2></div>
             <label htmlFor="recommendation-source">基于知识
               <select id="recommendation-source" value={recommendationId || ''}
                 onChange={(event) => changeRecommendation(Number(event.target.value))}>
@@ -875,16 +986,52 @@ function App() {
               </select>
             </label>
           </div>
+          <div className="recommendation-tabs" role="group" aria-label="推荐类型">
+            <button type="button" className={recommendationView === 'path' ? 'active' : ''}
+              onClick={() => setRecommendationView('path')}>学习路径</button>
+            <button type="button" className={recommendationView === 'related' ? 'active' : ''}
+              onClick={() => setRecommendationView('related')}>相关知识</button>
+            <button type="button" className={recommendationView === 'gaps' ? 'active' : ''}
+              onClick={() => setRecommendationView('gaps')}>知识缺口</button>
+          </div>
 
-          {recommendationLoading && <p className="status-message">正在计算标签相似度...</p>}
-          {recommendationError && <p className="error-message">加载失败：{recommendationError}</p>}
+          {recommendationLoading && <p className="status-message">正在生成学习建议...</p>}
+          {recommendationError && (
+            <div className="error-message message-with-action">
+              <span>加载失败：{recommendationError}</span>
+              <button type="button" className="action-button"
+                onClick={() => loadRecommendations(recommendationId)}>重试</button>
+            </div>
+          )}
           {recommendations && !recommendationLoading && (
             <>
               <div className="recommendation-source">
-                <div><span>当前知识</span><strong>{recommendations.source.title}</strong></div>
+                <div><span>当前学习锚点</span><strong>{recommendations.source.title}</strong></div>
                 <div className="tags">{recommendations.source.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
               </div>
-              {recommendations.items.length > 0 ? (
+
+              {recommendationView === 'path' && (
+                recommendations.learning_path.length > 0 ? (
+                  <div className="learning-path">
+                    {recommendations.learning_path.map((item, index) => (
+                      <button type="button" key={item.id} onClick={() => openDetail(item.id)}>
+                        <span className="path-index">{index + 1}</span>
+                        <span className="path-copy">
+                          <small>{item.stage}</small>
+                          <strong>{item.title}</strong>
+                          <span>{item.reason}</span>
+                          <span className="tags">{item.tags.slice(0, 5).map((tag) => <i key={tag}>{tag}</i>)}</span>
+                        </span>
+                        <ChevronRight size={18} />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state"><Compass size={26} /><strong>暂无学习路径</strong><span>当前知识缺少可串联的分类或标签。</span></div>
+                )
+              )}
+
+              {recommendationView === 'related' && (recommendations.items.length > 0 ? (
                 <div className="recommendation-list">
                   {recommendations.items.map((item, index) => (
                     <button type="button" key={item.id} onClick={() => openDetail(item.id)}>
@@ -904,6 +1051,21 @@ function App() {
                 </div>
               ) : (
                 <div className="empty-state"><Compass size={26} /><strong>暂无相似知识</strong><span>当前条目与其他知识没有共同标签。</span></div>
+              ))}
+
+              {recommendationView === 'gaps' && (
+                recommendations.gaps.length > 0 ? (
+                  <div className="gap-list">
+                    {recommendations.gaps.map((gap) => (
+                      <article key={gap.topic}>
+                        <strong>{gap.topic}</strong>
+                        <span>{gap.reason}</span>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state"><Compass size={26} /><strong>暂无明显缺口</strong><span>当前主题已有较完整的标签覆盖。</span></div>
+                )
               )}
             </>
           )}

@@ -208,6 +208,8 @@ class KnowledgeApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(graph.json()["relation_count"], 0)
         self.assertEqual(recommendations.status_code, 200)
         self.assertEqual(recommendations.json()["items"][0]["id"], 2)
+        self.assertIn("learning_path", recommendations.json())
+        self.assertIn("gaps", recommendations.json())
 
 
 if __name__ == "__main__":

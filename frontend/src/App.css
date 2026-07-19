@@ -283,6 +283,20 @@ main > section {
   margin: 0 0 18px;
 }
 
+.message-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.message-with-action .action-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  color: var(--coral);
+  background: #fff;
+}
+
 /* Overview */
 .stat-grid {
   display: grid;
@@ -781,13 +795,38 @@ main > section {
 }
 
 /* Graph */
+.graph-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: -6px 0 14px;
+}
+
 .graph-mode-control {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(104px, 1fr));
   gap: 3px;
   padding: 3px;
-  margin: -6px 0 14px;
   background: #e9eeeb;
+  border-radius: 6px;
+}
+
+.graph-controls label {
+  display: grid;
+  gap: 6px;
+  min-width: min(380px, 42vw);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.graph-controls select {
+  height: 38px;
+  padding: 0 32px 0 11px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
 }
 
@@ -935,11 +974,16 @@ main > section {
 }
 
 .bubble-node.knowledge text {
-  font-size: 12px;
+  font-size: 11px;
+}
+
+.bubble-node.concept text {
+  font-size: 7.4px;
+  font-weight: 650;
 }
 
 .bubble-node .bubble-count {
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 500;
   opacity: 0.76;
 }
@@ -984,6 +1028,11 @@ main > section {
 }
 
 .graph-legend .knowledge-dot {
+  background: #8eb7a5;
+  border-radius: 2px;
+}
+
+.graph-legend .focus-dot {
   background: var(--green);
   border-radius: 2px;
 }
@@ -1018,9 +1067,9 @@ main > section {
   stroke-width: 1.2;
 }
 
-.graph-links line.co-link {
-  stroke: #d8c2ad;
-  stroke-dasharray: 4 4;
+.graph-links line.concept-link {
+  stroke: #c7d8d0;
+  stroke-width: 1.1;
 }
 
 .knowledge-node {
@@ -1033,15 +1082,40 @@ main > section {
   stroke-width: 1.4;
 }
 
+.knowledge-node.focus-node rect {
+  fill: var(--green);
+  stroke: var(--green-dark);
+}
+
+.knowledge-node.related-node rect {
+  fill: #fff;
+  stroke: #b8cec5;
+}
+
 .knowledge-node:hover rect {
   fill: var(--green-soft);
   stroke: var(--green);
+}
+
+.knowledge-node.focus-node:hover rect {
+  fill: var(--green-dark);
+  stroke: var(--green-dark);
 }
 
 .knowledge-node text {
   fill: #274137;
   font-size: 12px;
   font-weight: 700;
+}
+
+.knowledge-node.focus-node text {
+  fill: #fff;
+  font-size: 13px;
+}
+
+.knowledge-node.related-node text {
+  fill: #3b554b;
+  font-size: 11px;
 }
 
 .concept-node circle {
@@ -1052,7 +1126,7 @@ main > section {
 
 .concept-node text {
   fill: #60452f;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -1076,6 +1150,33 @@ main > section {
   border-radius: 6px;
 }
 
+.recommendation-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(96px, 1fr));
+  gap: 3px;
+  padding: 3px;
+  margin: -6px 0 14px;
+  background: #e9eeeb;
+  border-radius: 6px;
+}
+
+.recommendation-tabs button {
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.recommendation-tabs button.active {
+  color: var(--green-dark);
+  font-weight: 700;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(30 45 38 / 12%);
+}
+
 .recommendation-source {
   display: flex;
   align-items: center;
@@ -1096,6 +1197,92 @@ main > section {
 .recommendation-source > div:first-child span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.learning-path {
+  display: grid;
+  gap: 10px;
+}
+
+.learning-path > button {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 20px;
+  gap: 14px;
+  align-items: center;
+  min-height: 112px;
+  padding: 15px 18px;
+  color: var(--ink);
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.learning-path > button:hover {
+  border-color: #a8cbbb;
+  background: #f8faf9;
+}
+
+.path-index {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: #fff;
+  font-weight: 800;
+  background: var(--green);
+  border-radius: 50%;
+}
+
+.path-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.path-copy small {
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.path-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path-copy > span:not(.tags) {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.gap-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gap-list article {
+  display: grid;
+  gap: 8px;
+  min-height: 104px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--amber);
+  border-radius: 7px;
+}
+
+.gap-list strong {
+  color: var(--ink);
+}
+
+.gap-list span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .recommendation-list {
@@ -1534,6 +1721,15 @@ main > section {
     overflow-x: auto;
   }
 
+  .graph-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .graph-controls label {
+    min-width: 0;
+  }
+
   .bubble-toolbar {
     align-items: flex-start;
     flex-direction: column;
@@ -1553,15 +1749,15 @@ main > section {
   }
 
   .bubble-node.knowledge text {
-    font-size: 18px;
-  }
-
-  .bubble-node.concept text {
     font-size: 15px;
   }
 
+  .bubble-node.concept text {
+    font-size: 10px;
+  }
+
   .bubble-node .bubble-count {
-    font-size: 14px;
+    font-size: 11px;
   }
 
   .recommendation-heading label {
@@ -1571,6 +1767,20 @@ main > section {
   .recommendation-source {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .recommendation-tabs {
+    width: 100%;
+  }
+
+  .learning-path > button {
+    grid-template-columns: 32px minmax(0, 1fr) 18px;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .gap-list {
+    grid-template-columns: 1fr;
   }
 
   .recommendation-list > button {
