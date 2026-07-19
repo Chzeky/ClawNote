@@ -11,7 +11,7 @@ ClawNote 是一个基于 OpenClaw 多 Agent 协作的个人智能知识管家。
                                       -> qa 检索 -> RAG 回答与引用
 ```
 
-网页与文本采集已有确定性脚本；Web MVP 支持知识搜索、详情、增删改查，并可通过粘贴文本、抓取网页或上传 TXT/Markdown 导入内容，再由 organizer 自动生成标题、摘要、分类和标签草稿。知识图谱具备基于实体共现和原句证据的基线实现，推荐具备标签 Jaccard 相似度算法。RSS 定时任务和图谱持久化仍在迭代。
+网页与文本采集已有确定性脚本；Web MVP 支持知识搜索、详情、增删改查，并可通过粘贴文本、抓取网页或上传 TXT/Markdown 导入内容，再由 organizer 自动生成标题、摘要、分类和标签草稿。Web 智能问答会先从 SQLite 检索证据，再由 qa Agent 生成带知识编号和来源链接的回答。知识图谱具备基于实体共现和原句证据的基线实现，推荐具备标签 Jaccard 相似度算法。RSS 定时任务和图谱持久化仍在迭代。
 
 ## Agent 与 Skill
 
@@ -33,7 +33,7 @@ ClawNote 是一个基于 OpenClaw 多 Agent 协作的个人智能知识管家。
 | Must | 摘要与标签 | organizer Skill 已实现 |
 | Must | 知识库存储 | SQLite 参数化写入已实现 |
 | Must | 基础检索 | SQLite FTS5 已实现 |
-| Must | RAG 问答 | qa Skill 已实现，要求引用知识编号 |
+| Must | RAG 问答 | Web 与飞书均已实现，回答引用知识编号与来源 |
 | Should | RSS 采集 | Skill 已定义，定时执行待完善 |
 | Should | 知识图谱 | 实体共现基线已实现，持久化待完善 |
 | Should | 问答引用来源 | 已实现知识编号、标题和来源规则 |
@@ -132,7 +132,7 @@ npm install
 npm test
 ```
 
-测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、内容采集、引用来源、图谱关系、标签推荐、性能基线和 Skill 目录结构。
+测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、RAG 证据检索与严格输出、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、网页正文与 MathJax 清洗、引用来源、图谱关系、标签推荐、性能基线和 Skill 目录结构。当前 Python 36 项、TypeScript/Jest 19 项测试全部通过。
 
 ## 安全说明
 
@@ -146,6 +146,8 @@ npm test
 - 智能导入把用户正文标记为不可信数据；organizer 仅返回严格校验的草稿，用户确认后才写入数据库。
 - organizer 使用精简输出和 64 条内存 LRU 草稿缓存；相同正文与标题提示的重复整理无需再次请求模型。
 - 新增知识表单使用浏览器会话草稿恢复，开发热更新或意外刷新后可恢复网址、原文和 AI 预览。
+- Web RAG 由后端确定性检索证据，qa Agent 只能基于所给证据回答；无证据时不会调用模型或虚构答案。
+- 网页采集优先提取 `article`、`main` 或 Markdown 正文，忽略导航、脚本及 MathJax SVG，并以 `[数学公式]` 标记公式位置。
 
 ## 渠道
 

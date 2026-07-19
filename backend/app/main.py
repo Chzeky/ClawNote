@@ -13,6 +13,7 @@ from backend.app.organizer import (
     OrganizerAnalysisError,
     analyze_knowledge_draft,
 )
+from backend.app.qa import QaGenerationError, QaResponse, answer_question
 from scripts import collect_content
 from scripts.knowledge_db import connect
 
@@ -33,6 +34,12 @@ class AnalyzeKnowledgeRequest(BaseModel):
 
     content: str = Field(min_length=20, max_length=20000)
     title_hint: str | None = Field(default=None, max_length=200)
+
+
+class QuestionRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    question: str = Field(min_length=2, max_length=500)
 
 
 class UrlCollectRequest(BaseModel):
@@ -97,6 +104,17 @@ async def analyze_knowledge(payload: AnalyzeKnowledgeRequest):
         raise HTTPException(
             status_code=502,
             detail="AI 整理失败，请检查 OpenClaw 和模型连接后重试",
+        ) from error
+
+
+@app.post("/api/qa", response_model=QaResponse)
+async def ask_knowledge_base(payload: QuestionRequest):
+    try:
+        return await answer_question(payload.question)
+    except QaGenerationError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="知识问答生成失败，请检查 OpenClaw 和模型连接后重试",
         ) from error
 
 

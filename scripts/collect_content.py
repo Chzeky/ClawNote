@@ -17,24 +17,60 @@ FAKE_IP_NETWORK = ipaddress.ip_network("198.18.0.0/15")
 
 
 class ArticleParser(HTMLParser):
+    IGNORED_TAGS = {"script", "style", "noscript", "svg"}
+    BLOCK_TAGS = {
+        "article", "blockquote", "div", "h1", "h2", "h3", "h4", "h5", "h6",
+        "li", "main", "p", "pre", "section", "table", "tr",
+    }
+    VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+
     def __init__(self):
         super().__init__()
         self._ignored_depth = 0
         self._in_title = False
+        self._content_depth = 0
         self.title_parts = []
-        self.text_parts = []
+        self.all_text_parts = []
+        self.content_text_parts = []
 
     def handle_starttag(self, tag, attrs):
-        if tag in {"script", "style", "noscript"}:
-            self._ignored_depth += 1
-        elif tag == "title":
+        if self._ignored_depth:
+            if tag not in self.VOID_TAGS:
+                self._ignored_depth += 1
+            return
+
+        attributes = dict(attrs)
+        classes = set(attributes.get("class", "").split())
+        is_content_root = tag in {"article", "main"} or "markdown" in classes
+
+        if tag in self.IGNORED_TAGS:
+            self._ignored_depth = 1
+            if tag == "svg" and self._content_depth:
+                self.content_text_parts.append("[数学公式]")
+            return
+
+        if self._content_depth and tag not in self.VOID_TAGS:
+            self._content_depth += 1
+        elif is_content_root:
+            self._content_depth = 1
+
+        if tag == "title":
             self._in_title = True
 
     def handle_endtag(self, tag):
-        if tag in {"script", "style", "noscript"} and self._ignored_depth:
+        if self._ignored_depth:
             self._ignored_depth -= 1
-        elif tag == "title":
+            return
+
+        if tag == "title":
             self._in_title = False
+
+        if not self._ignored_depth and tag in self.BLOCK_TAGS:
+            self.all_text_parts.append("\n")
+            if self._content_depth:
+                self.content_text_parts.append("\n")
+        if self._content_depth and tag not in self.VOID_TAGS:
+            self._content_depth -= 1
 
     def handle_data(self, data):
         text = " ".join(data.split())
@@ -42,7 +78,26 @@ class ArticleParser(HTMLParser):
             return
         if self._in_title:
             self.title_parts.append(text)
-        self.text_parts.append(text)
+        self.all_text_parts.append(text)
+        if self._content_depth:
+            self.content_text_parts.append(text)
+
+
+def normalize_text_parts(parts):
+    lines = []
+    current = []
+    for part in parts:
+        if part == "\n":
+            line = " ".join(current).strip()
+            if line and (not lines or lines[-1] != line):
+                lines.append(line)
+            current = []
+        else:
+            current.append(part)
+    line = " ".join(current).strip()
+    if line and (not lines or lines[-1] != line):
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def emit(data):
@@ -132,7 +187,8 @@ class SafeRedirectHandler(HTTPRedirectHandler):
 def extract_html(html):
     parser = ArticleParser()
     parser.feed(html)
-    return " ".join(parser.title_parts), "\n".join(parser.text_parts)
+    selected_parts = parser.content_text_parts or parser.all_text_parts
+    return " ".join(parser.title_parts), normalize_text_parts(selected_parts)
 
 
 def collect_url(args):

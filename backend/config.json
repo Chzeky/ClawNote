@@ -1,10 +1,15 @@
 {
   "openclawCommand": "openclaw",
   "organizerAgentId": "clawnote-organizer",
+  "qaAgentId": "clawnote-qa",
   "sessionPrefix": "web-draft",
+  "qaSessionPrefix": "web-answer",
   "thinking": "off",
   "timeoutSeconds": 90,
   "maxInputChars": 20000,
   "maxOutputBytes": 1048576,
-  "draftCacheEntries": 64
+  "draftCacheEntries": 64,
+  "qaCacheEntries": 64,
+  "qaEvidenceLimit": 5,
+  "qaCandidateLimit": 100
 }

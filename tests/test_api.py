@@ -9,6 +9,7 @@ import httpx
 
 from backend.app.main import app
 from backend.app.organizer import KnowledgeDraft
+from backend.app.qa import Citation, QaResponse
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -148,6 +149,34 @@ class KnowledgeApiTests(unittest.IsolatedAsyncioTestCase):
             "/api/collect/url",
             json={"url": "http://127.0.0.1/private"},
         )
+        self.assertEqual(response.status_code, 422)
+
+    async def test_qa_returns_grounded_answer(self):
+        qa_result = QaResponse(
+            answer="RAG 使用检索结果增强回答。[知识 #2：RAG基础概念]",
+            citations=[Citation(
+                id=2,
+                title="RAG基础概念",
+                source="user_input",
+                source_url="",
+                snippet="RAG 检索知识库内容。",
+            )],
+            confidence="medium",
+        )
+        with patch(
+            "backend.app.main.answer_question",
+            return_value=qa_result,
+        ) as answer_mock:
+            response = await self.client.post(
+                "/api/qa",
+                json={"question": "RAG 是什么？"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["citations"][0]["id"], 2)
+        answer_mock.assert_awaited_once_with("RAG 是什么？")
+
+    async def test_qa_rejects_too_short_question(self):
+        response = await self.client.post("/api/qa", json={"question": "?"})
         self.assertEqual(response.status_code, 422)
 
 

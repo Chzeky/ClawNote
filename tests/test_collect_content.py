@@ -51,6 +51,20 @@ class CollectContentTests(unittest.TestCase):
         self.assertIn("正文内容", content)
         self.assertNotIn("bad()", content)
 
+    def test_extract_html_uses_main_content_and_collapses_math_svg(self):
+        title, content = collect_content.extract_html(
+            "<html><head><title>课程</title></head><body>"
+            "<nav>重复导航</nav><div class='markdown'><p>公式如下：</p>"
+            "<div class='math'><svg><text>下</text><text>一</text>"
+            "<text>状</text><text>态</text></svg></div>"
+            "<p>根据公式继续分析。</p></div></body></html>"
+        )
+        self.assertEqual(title, "课程")
+        self.assertNotIn("重复导航", content)
+        self.assertIn("[数学公式]", content)
+        self.assertNotIn("下\n一\n状\n态", content)
+        self.assertIn("根据公式继续分析。", content)
+
     def test_rejects_loopback_url(self):
         with self.assertRaises(ValueError):
             collect_content.validate_public_url("http://127.0.0.1/private")

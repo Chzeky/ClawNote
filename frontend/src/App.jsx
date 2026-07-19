@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
-  AlignLeft, ArrowLeft, ChevronRight, FileUp, Link2, Pencil, Plus,
-  Save, Search, Sparkles, Trash2, X,
+  AlignLeft, ArrowLeft, BookOpen, ChevronRight, FileUp, Link2,
+  MessageCircle, Pencil, Plus, Save, Search, Send, Sparkles, Trash2, X,
 } from 'lucide-react'
 import './App.css'
 
@@ -61,6 +61,7 @@ function loadImportDraft() {
 const SAVED_IMPORT = loadImportDraft()
 
 function App() {
+  const [activeView, setActiveView] = useState('knowledge')
   const [items, setItems] = useState([])
   const [query, setQuery] = useState('')
   const [error, setError] = useState('')
@@ -94,6 +95,10 @@ function App() {
     content: '',
     tags: '',
   })
+  const [question, setQuestion] = useState('')
+  const [qaTurns, setQaTurns] = useState([])
+  const [asking, setAsking] = useState(false)
+  const [qaError, setQaError] = useState('')
 
   async function loadKnowledge(searchQuery = '') {
     setLoading(true)
@@ -414,13 +419,50 @@ function App() {
     loadKnowledge()
   }
 
+  async function askKnowledge(event) {
+    event.preventDefault()
+    const nextQuestion = question.trim()
+    if (!nextQuestion || asking) return
+    setAsking(true)
+    setQaError('')
+    try {
+      const response = await fetch(`${API_BASE}/api/qa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: nextQuestion }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(responseError(data, response.status))
+      setQaTurns((current) => [...current, {
+        id: crypto.randomUUID(),
+        question: nextQuestion,
+        ...data,
+      }])
+      setQuestion('')
+    } catch (requestError) {
+      setQaError(requestError.message)
+    } finally {
+      setAsking(false)
+    }
+  }
+
   return (
     <main>
       <header className="app-header">
         <div><h1>ClawNote</h1><p>个人智能知识管家</p></div>
+        <nav className="primary-nav" aria-label="主要功能">
+          <button type="button" className={activeView === 'knowledge' ? 'active' : ''}
+            onClick={() => setActiveView('knowledge')}>
+            <BookOpen size={17} />知识库
+          </button>
+          <button type="button" className={activeView === 'qa' ? 'active' : ''}
+            onClick={() => setActiveView('qa')}>
+            <MessageCircle size={17} />智能问答
+          </button>
+        </nav>
       </header>
 
-      <section>
+      {activeView === 'knowledge' && <section>
         <div className="section-heading">
           <div><h2>知识库</h2><span>{items.length} 条知识</span></div>
           <div className="toolbar">
@@ -477,7 +519,69 @@ function App() {
             ))}
           </ul>
         )}
-      </section>
+      </section>}
+
+      {activeView === 'qa' && (
+        <section className="qa-page">
+          <div className="section-heading qa-heading">
+            <div><h2>智能问答</h2><span>基于 {items.length} 条个人知识</span></div>
+          </div>
+
+          <div className="qa-transcript" aria-live="polite">
+            {qaTurns.length === 0 && !asking && (
+              <div className="qa-empty">
+                <MessageCircle size={28} aria-hidden="true" />
+                <strong>向个人知识库提问</strong>
+                <span>回答只使用已保存的知识，并附上可核验的来源。</span>
+              </div>
+            )}
+
+            {qaTurns.map((turn) => (
+              <article className="qa-turn" key={turn.id}>
+                <div className="qa-question"><span>你</span><p>{turn.question}</p></div>
+                <div className="qa-answer">
+                  <div className="qa-answer-heading">
+                    <span>ClawNote</span>
+                    <small>{turn.confidence === 'high' ? '高置信度' :
+                      turn.confidence === 'medium' ? '中等置信度' : '未找到依据'}</small>
+                  </div>
+                  <p>{turn.answer}</p>
+                  {turn.citations.length > 0 && (
+                    <div className="qa-citations">
+                      {turn.citations.map((citation) => (
+                        <button type="button" key={citation.id}
+                          onClick={() => openDetail(citation.id)}>
+                          <BookOpen size={15} />
+                          <span>知识 #{citation.id}：{citation.title}</span>
+                          <ChevronRight size={15} aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+
+            {asking && (
+              <div className="qa-pending">
+                <Sparkles size={18} />正在检索个人知识库并生成回答...
+              </div>
+            )}
+          </div>
+
+          {qaError && <p className="error-message compact-message">问答失败：{qaError}</p>}
+          <form className="qa-composer" onSubmit={askKnowledge}>
+            <textarea value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="输入关于个人知识库的问题"
+              aria-label="向知识库提问" rows={3} maxLength={500} required />
+            <button className="save-button" type="submit"
+              disabled={asking || question.trim().length < 2}>
+              <Send size={17} />{asking ? '回答中...' : '发送问题'}
+            </button>
+          </form>
+        </section>
+      )}
 
       {detailOpen && (
         <div className="drawer-backdrop" onMouseDown={closeDetail}>
