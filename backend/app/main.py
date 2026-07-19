@@ -13,6 +13,12 @@ from backend.app.organizer import (
     OrganizerAnalysisError,
     analyze_knowledge_draft,
 )
+from backend.app.insights import (
+    build_graph,
+    build_overview,
+    normalize_item,
+    recommend_items,
+)
 from backend.app.qa import QaGenerationError, QaResponse, answer_question
 from scripts import collect_content
 from scripts.knowledge_db import connect
@@ -68,6 +74,19 @@ def collected_response(result: dict) -> CollectedContent:
     )
 
 
+def load_insight_items(limit: int = 100) -> list[dict]:
+    sql = """
+        SELECT id, title, content, summary, category, tags,
+               source, source_url, created_at
+        FROM knowledge_items
+        ORDER BY id DESC
+        LIMIT ?
+    """
+    with closing(connect()) as connection:
+        rows = connection.execute(sql, (limit,)).fetchall()
+    return [normalize_item(row) for row in rows]
+
+
 app = FastAPI(
     title="ClawNote API",
     version="0.1.0",
@@ -91,6 +110,27 @@ def health():
         "status": "ok",
         "service": "clawnote-api",
     }
+
+
+@app.get("/api/overview")
+def knowledge_overview():
+    return build_overview(load_insight_items())
+
+
+@app.get("/api/graph")
+def knowledge_graph(limit: int = Query(default=30, ge=1, le=100)):
+    return build_graph(load_insight_items(limit))
+
+
+@app.get("/api/recommendations")
+def knowledge_recommendations(
+    knowledge_id: int = Query(ge=1),
+    limit: int = Query(default=5, ge=1, le=20),
+):
+    result = recommend_items(load_insight_items(), knowledge_id, limit)
+    if result is None:
+        raise HTTPException(status_code=404, detail="知识条目不存在")
+    return result
 
 
 @app.post("/api/knowledge/analyze", response_model=KnowledgeDraft)

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  AlignLeft, ArrowLeft, BookOpen, ChevronRight, FileUp, Link2,
-  MessageCircle, Pencil, Plus, Save, Search, Send, Sparkles, Trash2, X,
+  AlignLeft, ArrowLeft, BookOpen, ChevronRight, CircleGauge, Compass,
+  Database, FileUp, FolderTree, Layers3, Link2, MessageCircle, Network,
+  Pencil, Plus, Save, Search, Send, Sparkles, Tag, Trash2, X,
 } from 'lucide-react'
 import './App.css'
 
@@ -24,6 +25,26 @@ async function requestKnowledge(searchQuery = '') {
   if (!response.ok) throw new Error(`请求失败：${response.status}`)
   const data = await response.json()
   return data.items
+}
+
+async function requestInsights() {
+  const [overviewResponse, graphResponse] = await Promise.all([
+    fetch(`${API_BASE}/api/overview`),
+    fetch(`${API_BASE}/api/graph?limit=30`),
+  ])
+  if (!overviewResponse.ok || !graphResponse.ok) {
+    throw new Error('分析数据加载失败')
+  }
+  return Promise.all([overviewResponse.json(), graphResponse.json()])
+}
+
+async function requestRecommendations(knowledgeId) {
+  const response = await fetch(
+    `${API_BASE}/api/recommendations?knowledge_id=${knowledgeId}&limit=8`,
+  )
+  const data = await response.json()
+  if (!response.ok) throw new Error(responseError(data, response.status))
+  return data
 }
 
 function createEditForm(item) {
@@ -60,9 +81,63 @@ function loadImportDraft() {
 
 const SAVED_IMPORT = loadImportDraft()
 
+const NAV_ITEMS = [
+  { id: 'overview', label: '工作台', icon: CircleGauge },
+  { id: 'knowledge', label: '知识库', icon: BookOpen },
+  { id: 'qa', label: '智能问答', icon: MessageCircle },
+  { id: 'graph', label: '知识图谱', icon: Network },
+  { id: 'recommendations', label: '相关推荐', icon: Compass },
+]
+
+function bestRecommendationSource(items) {
+  const frequencies = new Map()
+  items.forEach((item) => item.tags.forEach((tag) => {
+    const key = tag.toLocaleLowerCase()
+    frequencies.set(key, (frequencies.get(key) || 0) + 1)
+  }))
+  return items.find((item) => item.tags.some(
+    (tag) => frequencies.get(tag.toLocaleLowerCase()) > 1,
+  ))?.id || items[0]?.id || null
+}
+
+function truncateLabel(value, maxLength = 14) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value
+}
+
+function graphLayout(nodes) {
+  const knowledge = nodes.filter((node) => node.type === 'knowledge')
+  const concepts = nodes.filter((node) => node.type === 'concept')
+  const positions = new Map()
+  knowledge.forEach((node, index) => {
+    positions.set(node.id, {
+      x: 175,
+      y: 46 + index * (420 / Math.max(1, knowledge.length - 1)),
+    })
+  })
+  const columns = [585, 790]
+  concepts.forEach((node, index) => {
+    const column = index % 2
+    const row = Math.floor(index / 2)
+    const rowCount = Math.ceil(concepts.length / 2)
+    positions.set(node.id, {
+      x: columns[column],
+      y: 38 + row * (436 / Math.max(1, rowCount - 1)),
+    })
+  })
+  return positions
+}
+
 function App() {
-  const [activeView, setActiveView] = useState('knowledge')
+  const [activeView, setActiveView] = useState('overview')
   const [items, setItems] = useState([])
+  const [overview, setOverview] = useState(null)
+  const [graph, setGraph] = useState(null)
+  const [insightLoading, setInsightLoading] = useState(true)
+  const [insightError, setInsightError] = useState('')
+  const [recommendationId, setRecommendationId] = useState(null)
+  const [recommendations, setRecommendations] = useState(null)
+  const [recommendationLoading, setRecommendationLoading] = useState(false)
+  const [recommendationError, setRecommendationError] = useState('')
   const [query, setQuery] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -100,12 +175,32 @@ function App() {
   const [asking, setAsking] = useState(false)
   const [qaError, setQaError] = useState('')
 
+  async function loadInsights() {
+    setInsightLoading(true)
+    setInsightError('')
+    try {
+      const [overviewData, graphData] = await requestInsights()
+      setOverview(overviewData)
+      setGraph(graphData)
+    } catch (requestError) {
+      setInsightError(requestError.message)
+    } finally {
+      setInsightLoading(false)
+    }
+  }
+
   async function loadKnowledge(searchQuery = '') {
     setLoading(true)
     setError('')
 
     try {
-      setItems(await requestKnowledge(searchQuery))
+      const nextItems = await requestKnowledge(searchQuery)
+      setItems(nextItems)
+      setRecommendationId((current) => (
+        current && nextItems.some((item) => item.id === current)
+          ? current
+          : bestRecommendationSource(nextItems)
+      ))
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -117,7 +212,10 @@ function App() {
     let cancelled = false
     requestKnowledge()
       .then((nextItems) => {
-        if (!cancelled) setItems(nextItems)
+        if (!cancelled) {
+          setItems(nextItems)
+          setRecommendationId(bestRecommendationSource(nextItems))
+        }
       })
       .catch((requestError) => {
         if (!cancelled) setError(requestError.message)
@@ -129,6 +227,51 @@ function App() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    requestInsights()
+      .then(([overviewData, graphData]) => {
+        if (!cancelled) {
+          setOverview(overviewData)
+          setGraph(graphData)
+        }
+      })
+      .catch((requestError) => {
+        if (!cancelled) setInsightError(requestError.message)
+      })
+      .finally(() => {
+        if (!cancelled) setInsightLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  async function loadRecommendations(knowledgeId) {
+    if (!knowledgeId) return
+    setRecommendationLoading(true)
+    setRecommendationError('')
+    try {
+      setRecommendations(await requestRecommendations(knowledgeId))
+    } catch (requestError) {
+      setRecommendationError(requestError.message)
+    } finally {
+      setRecommendationLoading(false)
+    }
+  }
+
+  function changeView(viewId) {
+    setActiveView(viewId)
+    if (viewId === 'recommendations') {
+      const sourceId = recommendationId || bestRecommendationSource(items)
+      if (sourceId && sourceId !== recommendationId) setRecommendationId(sourceId)
+      loadRecommendations(sourceId)
+    }
+  }
+
+  function changeRecommendation(knowledgeId) {
+    setRecommendationId(knowledgeId)
+    loadRecommendations(knowledgeId)
+  }
 
   useEffect(() => {
     if (!detailOpen && !createOpen) return undefined
@@ -330,7 +473,7 @@ function App() {
       if (!response.ok) throw new Error(responseError(data, response.status))
       setCreateOpen(false)
       setNotice(`知识 #${data.knowledge_id} 已创建`)
-      await loadKnowledge(query.trim())
+      await Promise.all([loadKnowledge(query.trim()), loadInsights()])
       await openDetail(data.knowledge_id)
     } catch (requestError) {
       setCreateError(requestError.message)
@@ -382,6 +525,7 @@ function App() {
       )))
       setEditing(false)
       setNotice(`知识 #${data.item.id} 已更新`)
+      loadInsights()
     } catch (requestError) {
       setActionError(requestError.message)
     } finally {
@@ -402,6 +546,7 @@ function App() {
       setItems((current) => current.filter((item) => item.id !== selectedItem.id))
       setNotice(`知识 #${selectedItem.id} 已删除`)
       closeDetail()
+      loadInsights()
     } catch (requestError) {
       setActionError(requestError.message)
     } finally {
@@ -446,21 +591,95 @@ function App() {
     }
   }
 
+  const graphPositions = graph ? graphLayout(graph.nodes) : new Map()
+
   return (
     <main>
       <header className="app-header">
-        <div><h1>ClawNote</h1><p>个人智能知识管家</p></div>
+        <div className="brand-lockup">
+          <span className="brand-mark"><Layers3 size={22} /></span>
+          <div><h1>ClawNote</h1><p>个人智能知识管家</p></div>
+        </div>
+        <div className="header-actions">
+          <span className="system-status"><i />本地知识库在线</span>
+          <button className="create-button" type="button" onClick={openCreate}>
+            <Plus size={18} />新增知识
+          </button>
+        </div>
         <nav className="primary-nav" aria-label="主要功能">
-          <button type="button" className={activeView === 'knowledge' ? 'active' : ''}
-            onClick={() => setActiveView('knowledge')}>
-            <BookOpen size={17} />知识库
-          </button>
-          <button type="button" className={activeView === 'qa' ? 'active' : ''}
-            onClick={() => setActiveView('qa')}>
-            <MessageCircle size={17} />智能问答
-          </button>
+          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+            <button type="button" key={id} className={activeView === id ? 'active' : ''}
+              onClick={() => changeView(id)}>
+              <Icon size={17} />{label}
+            </button>
+          ))}
         </nav>
       </header>
+
+      {activeView === 'overview' && (
+        <section className="overview-page">
+          <div className="page-heading">
+            <div><span className="eyebrow">KNOWLEDGE OVERVIEW</span><h2>知识工作台</h2></div>
+            <p>最近的内容、分类与知识主题</p>
+          </div>
+
+          {insightLoading && <p className="status-message">正在汇总知识库...</p>}
+          {insightError && <p className="error-message">加载失败：{insightError}</p>}
+          {overview && !insightLoading && (
+            <>
+              <div className="stat-grid">
+                <article><Database size={19} /><span>知识总量</span><strong>{overview.total}</strong></article>
+                <article><FolderTree size={19} /><span>内容分类</span><strong>{overview.category_count}</strong></article>
+                <article><Tag size={19} /><span>主题标签</span><strong>{overview.tag_count}</strong></article>
+                <article><Link2 size={19} /><span>来源渠道</span><strong>{overview.source_count}</strong></article>
+              </div>
+
+              <div className="overview-grid">
+                <section className="overview-panel recent-panel">
+                  <div className="panel-heading"><h3>最近入库</h3>
+                    <button type="button" onClick={() => setActiveView('knowledge')}>查看全部<ChevronRight size={15} /></button>
+                  </div>
+                  <div className="recent-list">
+                    {overview.recent.map((item) => (
+                      <button type="button" key={item.id} onClick={() => openDetail(item.id)}>
+                        <span><strong>{item.title}</strong><small>{item.category}</small></span>
+                        <time>{item.created_at?.slice(0, 10) || '未记录'}</time>
+                        <ChevronRight size={17} />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="overview-panel distribution-panel">
+                  <div className="panel-heading"><h3>分类分布</h3><span>{overview.category_count} 类</span></div>
+                  <div className="distribution-list">
+                    {overview.categories.map((category) => (
+                      <div key={category.name}>
+                        <span>{category.name}</span>
+                        <i><b style={{ width: `${Math.max(8, category.count / overview.total * 100)}%` }} /></i>
+                        <strong>{category.count}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="overview-panel topic-panel">
+                  <div className="panel-heading"><h3>高频主题</h3><span>{overview.tag_count} 个标签</span></div>
+                  <div className="topic-cloud">
+                    {overview.top_tags.map((tag) => (
+                      <button type="button" key={tag.name} onClick={() => {
+                        setQuery(tag.name); setActiveView('knowledge'); loadKnowledge(tag.name)
+                      }}>
+                        {tag.name}<span>{tag.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {activeView === 'knowledge' && <section>
         <div className="section-heading">
@@ -487,9 +706,6 @@ function App() {
                 <Search size={18} /><span>搜索</span>
               </button>
             </form>
-            <button className="create-button" type="button" onClick={openCreate}>
-              <Plus size={18} />新增知识
-            </button>
           </div>
         </div>
 
@@ -580,6 +796,106 @@ function App() {
               <Send size={17} />{asking ? '回答中...' : '发送问题'}
             </button>
           </form>
+        </section>
+      )}
+
+      {activeView === 'graph' && (
+        <section className="graph-page">
+          <div className="page-heading">
+            <div><span className="eyebrow">KNOWLEDGE GRAPH</span><h2>知识图谱</h2></div>
+            {graph && <p>{graph.knowledge_count} 条知识 · {graph.concept_count} 个主题 · {graph.relation_count} 条关系</p>}
+          </div>
+          {insightLoading && <p className="status-message">正在构建知识关系...</p>}
+          {insightError && <p className="error-message">加载失败：{insightError}</p>}
+          {graph && !insightLoading && graph.nodes.length > 0 && (
+            <div className="graph-workspace">
+              <div className="graph-legend">
+                <span><i className="knowledge-dot" />知识条目</span>
+                <span><i className="concept-dot" />主题实体</span>
+                <span><i className="relation-line" />共现关系</span>
+              </div>
+              <div className="graph-canvas">
+                <svg viewBox="0 0 960 520" role="img" aria-label="知识与主题关系图">
+                  <g className="graph-links">
+                    {graph.links.map((link, index) => {
+                      const source = graphPositions.get(link.source)
+                      const target = graphPositions.get(link.target)
+                      if (!source || !target) return null
+                      return <line key={`${link.source}-${link.target}-${index}`}
+                        x1={source.x} y1={source.y} x2={target.x} y2={target.y}
+                        className={link.type === 'co_occurs_with' ? 'co-link' : ''} />
+                    })}
+                  </g>
+                  <g className="graph-nodes">
+                    {graph.nodes.map((node) => {
+                      const position = graphPositions.get(node.id)
+                      if (!position) return null
+                      const isKnowledge = node.type === 'knowledge'
+                      return (
+                        <g key={node.id} transform={`translate(${position.x} ${position.y})`}
+                          className={isKnowledge ? 'knowledge-node' : 'concept-node'}
+                          onClick={isKnowledge ? () => openDetail(node.knowledge_id) : undefined}>
+                          <title>{node.label}</title>
+                          {isKnowledge
+                            ? <rect x="-124" y="-19" width="248" height="38" rx="6" />
+                            : <circle r={Math.min(17, 10 + node.weight * 1.5)} />}
+                          <text textAnchor={isKnowledge ? 'middle' : 'start'}
+                            x={isKnowledge ? 0 : 22} y="5">{truncateLabel(node.label, isKnowledge ? 18 : 10)}</text>
+                        </g>
+                      )
+                    })}
+                  </g>
+                </svg>
+              </div>
+            </div>
+          )}
+          {graph && graph.nodes.length === 0 && <p className="status-message">知识库为空，暂无可构建的关系。</p>}
+        </section>
+      )}
+
+      {activeView === 'recommendations' && (
+        <section className="recommendation-page">
+          <div className="page-heading recommendation-heading">
+            <div><span className="eyebrow">RELATED KNOWLEDGE</span><h2>相关推荐</h2></div>
+            <label htmlFor="recommendation-source">基于知识
+              <select id="recommendation-source" value={recommendationId || ''}
+                onChange={(event) => changeRecommendation(Number(event.target.value))}>
+                {items.map((item) => <option value={item.id} key={item.id}>#{item.id} {item.title}</option>)}
+              </select>
+            </label>
+          </div>
+
+          {recommendationLoading && <p className="status-message">正在计算标签相似度...</p>}
+          {recommendationError && <p className="error-message">加载失败：{recommendationError}</p>}
+          {recommendations && !recommendationLoading && (
+            <>
+              <div className="recommendation-source">
+                <div><span>当前知识</span><strong>{recommendations.source.title}</strong></div>
+                <div className="tags">{recommendations.source.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+              </div>
+              {recommendations.items.length > 0 ? (
+                <div className="recommendation-list">
+                  {recommendations.items.map((item, index) => (
+                    <button type="button" key={item.id} onClick={() => openDetail(item.id)}>
+                      <span className="recommendation-rank">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="recommendation-copy">
+                        <strong>{item.title}</strong>
+                        <small>{item.reason}</small>
+                        <span className="tags">{item.matched_tags.map((tag) => <i key={tag}>{tag}</i>)}</span>
+                      </span>
+                      <span className="similarity">
+                        <strong>{Math.round(item.similarity * 100)}%</strong>
+                        <i><b style={{ width: `${item.similarity * 100}%` }} /></i>
+                      </span>
+                      <ChevronRight size={18} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state"><Compass size={26} /><strong>暂无相似知识</strong><span>当前条目与其他知识没有共同标签。</span></div>
+              )}
+            </>
+          )}
         </section>
       )}
 

@@ -179,6 +179,36 @@ class KnowledgeApiTests(unittest.IsolatedAsyncioTestCase):
         response = await self.client.post("/api/qa", json={"question": "?"})
         self.assertEqual(response.status_code, 422)
 
+    async def test_overview_graph_and_recommendation_endpoints(self):
+        for title, tags in (
+            ("RAG 基础", ["RAG", "知识检索"]),
+            ("混合检索", ["RAG", "向量检索"]),
+        ):
+            response = await self.client.post(
+                "/api/knowledge/text",
+                json={
+                    "title": title,
+                    "content": f"{title} 的测试正文。",
+                    "category": "AI",
+                    "tags": tags,
+                },
+            )
+            self.assertEqual(response.status_code, 201)
+
+        overview = await self.client.get("/api/overview")
+        graph = await self.client.get("/api/graph")
+        recommendations = await self.client.get(
+            "/api/recommendations",
+            params={"knowledge_id": 1, "limit": 5},
+        )
+
+        self.assertEqual(overview.status_code, 200)
+        self.assertEqual(overview.json()["total"], 2)
+        self.assertEqual(graph.status_code, 200)
+        self.assertGreater(graph.json()["relation_count"], 0)
+        self.assertEqual(recommendations.status_code, 200)
+        self.assertEqual(recommendations.json()["items"][0]["id"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

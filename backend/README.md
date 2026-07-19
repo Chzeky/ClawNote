@@ -16,6 +16,9 @@ OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
 ## Current endpoints
 
 - `GET /api/health`: service health.
+- `GET /api/overview`: knowledge, category, tag, source, and recent-item statistics.
+- `GET /api/graph?limit=30`: deterministic knowledge, concept, and co-occurrence graph.
+- `GET /api/recommendations?knowledge_id=5&limit=8`: Jaccard tag recommendations.
 - `GET /api/knowledge?limit=20`: latest knowledge items.
 - `GET /api/search?q=RAG&limit=5`: FTS5 search with safe `LIKE` fallback.
 - `POST /api/qa`: retrieve local evidence and ask the qa Agent for a grounded answer with citations.
