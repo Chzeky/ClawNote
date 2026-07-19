@@ -3,6 +3,7 @@
 import argparse
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -28,7 +29,7 @@ def init_database(_args):
     if not INIT_SQL_PATH.exists():
         raise FileNotFoundError(f"找不到初始化文件：{INIT_SQL_PATH}")
 
-    with connect() as connection:
+    with closing(connect()) as connection, connection:
         connection.executescript(INIT_SQL_PATH.read_text(encoding="utf-8"))
 
     print_json({
@@ -66,7 +67,7 @@ def add_knowledge(args):
         args.content_type,
     )
 
-    with connect() as connection:
+    with closing(connect()) as connection, connection:
         cursor = connection.execute(sql, values)
         knowledge_id = cursor.lastrowid
 
@@ -96,7 +97,7 @@ def search_knowledge(args):
         LIMIT ?
     """
 
-    with connect() as connection:
+    with closing(connect()) as connection, connection:
         rows = connection.execute(
             fts_sql,
             (args.query, args.limit)
@@ -151,7 +152,7 @@ def get_knowledge(args):
         WHERE id = ?
     """
 
-    with connect() as connection:
+    with closing(connect()) as connection, connection:
         row = connection.execute(sql, (args.id,)).fetchone()
 
     print_json({
@@ -168,7 +169,7 @@ def list_knowledge(args):
         LIMIT ?
     """
 
-    with connect() as connection:
+    with closing(connect()) as connection, connection:
         rows = connection.execute(sql, (args.limit,)).fetchall()
 
     print_json({

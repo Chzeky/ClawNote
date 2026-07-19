@@ -19,3 +19,6 @@ OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
 - `GET /api/knowledge?limit=20`: latest knowledge items.
 - `GET /api/search?q=RAG&limit=5`: FTS5 search with safe `LIKE` fallback.
 - `POST /api/knowledge/text`: parameterized text knowledge storage.
+- `GET /api/knowledge/{id}`: complete knowledge detail.
+- `PATCH /api/knowledge/{id}`: partial title, content, summary, category, or tag update.
+- `DELETE /api/knowledge/{id}`: delete one knowledge item and its synchronized FTS row.

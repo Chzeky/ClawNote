@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,7 +53,7 @@ def list_knowledge(
         LIMIT ?
     """
 
-    with connect() as connection:
+    with closing(connect()) as connection:
         rows = connection.execute(sql, (limit,)).fetchall()
 
     items = []
@@ -93,7 +94,7 @@ def search_knowledge(
         LIMIT ?
     """
 
-    with connect() as connection:
+    with closing(connect()) as connection:
         try:
             rows = connection.execute(
                 fts_sql,
@@ -176,12 +177,164 @@ def create_text_knowledge(payload: TextKnowledgeCreate):
         "text",
     )
 
-    with connect() as connection:
+    with closing(connect()) as connection:
         cursor = connection.execute(sql, values)
+        connection.commit()
         knowledge_id = cursor.lastrowid
 
     return {
         "success": True,
         "stored": True,
+        "knowledge_id": knowledge_id,
+    }
+
+
+class KnowledgeUpdate(BaseModel):
+    title: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+    )
+    content: str | None = Field(default=None, min_length=1)
+    summary: str | None = None
+    category: str | None = Field(default=None, min_length=1)
+    tags: list[str] | None = Field(default=None, max_length=10)
+
+
+def serialize_knowledge(row):
+    item = dict(row)
+    item["tags"] = json.loads(item["tags"] or "[]")
+    return item
+
+
+@app.get("/api/knowledge/{knowledge_id}")
+def get_knowledge_item(knowledge_id: int):
+    sql = """
+        SELECT *
+        FROM knowledge_items
+        WHERE id = ?
+    """
+
+    with closing(connect()) as connection:
+        row = connection.execute(
+            sql,
+            (knowledge_id,),
+        ).fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="知识条目不存在",
+        )
+
+    return {
+        "success": True,
+        "item": serialize_knowledge(row),
+    }
+
+
+@app.patch("/api/knowledge/{knowledge_id}")
+def update_knowledge_item(
+    knowledge_id: int,
+    payload: KnowledgeUpdate,
+):
+    changes = payload.model_dump(exclude_unset=True)
+
+    if not changes:
+        raise HTTPException(
+            status_code=422,
+            detail="至少需要提供一个修改字段",
+        )
+
+    for field in ("title", "content", "category"):
+        if field in changes:
+            value = changes[field]
+
+            if value is None or not value.strip():
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"{field} 不能为空",
+                )
+
+            changes[field] = value.strip()
+
+    if "summary" in changes:
+        changes["summary"] = (changes["summary"] or "").strip()
+
+    if "tags" in changes:
+        tags = changes["tags"]
+
+        if tags is None:
+            raise HTTPException(
+                status_code=422,
+                detail="tags 不能为 null",
+            )
+
+        normalized_tags = [
+            tag.strip()
+            for tag in tags
+            if tag.strip()
+        ]
+        changes["tags"] = json.dumps(
+            normalized_tags,
+            ensure_ascii=False,
+        )
+
+    set_clause = ", ".join(
+        f"{field} = ?"
+        for field in changes
+    )
+    values = [*changes.values(), knowledge_id]
+
+    with closing(connect()) as connection:
+        cursor = connection.execute(
+            f"""
+                UPDATE knowledge_items
+                SET {set_clause}
+                WHERE id = ?
+            """,
+            values,
+        )
+
+        if cursor.rowcount == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="知识条目不存在",
+            )
+
+        row = connection.execute(
+            "SELECT * FROM knowledge_items WHERE id = ?",
+            (knowledge_id,),
+        ).fetchone()
+        connection.commit()
+
+    return {
+        "success": True,
+        "updated": True,
+        "item": serialize_knowledge(row),
+    }
+
+
+@app.delete("/api/knowledge/{knowledge_id}")
+def delete_knowledge_item(knowledge_id: int):
+    with closing(connect()) as connection:
+        cursor = connection.execute(
+            """
+                DELETE FROM knowledge_items
+                WHERE id = ?
+            """,
+            (knowledge_id,),
+        )
+
+        if cursor.rowcount == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="知识条目不存在",
+            )
+        connection.commit()
+
+    return {
+        "success": True,
+        "deleted": True,
         "knowledge_id": knowledge_id,
     }

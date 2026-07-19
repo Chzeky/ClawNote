@@ -49,7 +49,7 @@ class KnowledgeDatabaseTests(unittest.TestCase):
         )
 
     def test_init_creates_tables(self):
-        with sqlite3.connect(knowledge_db.DB_PATH) as connection:
+        with contextlib.closing(sqlite3.connect(knowledge_db.DB_PATH)) as connection:
             names = {
                 row[0]
                 for row in connection.execute(
@@ -100,7 +100,7 @@ class KnowledgeDatabaseTests(unittest.TestCase):
             knowledge_db.add_knowledge,
             self.entry(title=malicious_title),
         )
-        with sqlite3.connect(knowledge_db.DB_PATH) as connection:
+        with contextlib.closing(sqlite3.connect(knowledge_db.DB_PATH)) as connection:
             count = connection.execute(
                 "SELECT COUNT(*) FROM knowledge_items"
             ).fetchone()[0]

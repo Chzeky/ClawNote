@@ -25,11 +25,13 @@
 | TC-12 | `config.json`、`permissions.json` 为有效 JSON | 通过 |
 | TC-13 | 仓库不包含用户专属 `/home/<user>` 绝对路径 | 通过 |
 | TC-14 | 五个 Skill 均包含 TypeScript 规范文件且配置 JSON 有效 | 通过 |
+| TC-15 | FastAPI 知识新增、详情、修改、删除完整生命周期 | 通过 |
+| TC-16 | 空更新请求和不存在知识正确返回 422/404 | 通过 |
 
 执行结果：
 
 ```text
-Ran 14 tests
+Ran 16 tests
 
 OK
 ```
