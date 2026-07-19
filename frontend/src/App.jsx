@@ -5,6 +5,7 @@ import {
   Pencil, Plus, Save, Search, Send, Sparkles, Tag, Trash2, X,
 } from 'lucide-react'
 import './App.css'
+import KnowledgeBubbleGraph from './KnowledgeBubbleGraph'
 
 const API_BASE = 'http://127.0.0.1:8000'
 const IMPORT_DRAFT_KEY = 'clawnote.import-draft'
@@ -132,6 +133,7 @@ function App() {
   const [items, setItems] = useState([])
   const [overview, setOverview] = useState(null)
   const [graph, setGraph] = useState(null)
+  const [graphMode, setGraphMode] = useState('bubbles')
   const [insightLoading, setInsightLoading] = useState(true)
   const [insightError, setInsightError] = useState('')
   const [recommendationId, setRecommendationId] = useState(null)
@@ -805,9 +807,18 @@ function App() {
             <div><span className="eyebrow">KNOWLEDGE GRAPH</span><h2>知识图谱</h2></div>
             {graph && <p>{graph.knowledge_count} 条知识 · {graph.concept_count} 个主题 · {graph.relation_count} 条关系</p>}
           </div>
+          <div className="graph-mode-control" role="group" aria-label="图谱视图">
+            <button type="button" className={graphMode === 'bubbles' ? 'active' : ''}
+              onClick={() => setGraphMode('bubbles')}>分类气泡</button>
+            <button type="button" className={graphMode === 'relations' ? 'active' : ''}
+              onClick={() => setGraphMode('relations')}>关系网络</button>
+          </div>
           {insightLoading && <p className="status-message">正在构建知识关系...</p>}
           {insightError && <p className="error-message">加载失败：{insightError}</p>}
-          {graph && !insightLoading && graph.nodes.length > 0 && (
+          {graph && !insightLoading && graph.nodes.length > 0 && graphMode === 'bubbles' && (
+            <KnowledgeBubbleGraph graph={graph} onOpenKnowledge={openDetail} />
+          )}
+          {graph && !insightLoading && graph.nodes.length > 0 && graphMode === 'relations' && (
             <div className="graph-workspace">
               <div className="graph-legend">
                 <span><i className="knowledge-dot" />知识条目</span>

@@ -15,6 +15,14 @@ GRAPH_CONFIG_PATH = (
     / "build-knowledge-graph"
     / "config.json"
 )
+CATEGORY_ALIASES = {
+    "ai": "AI 技术",
+    "ai技术": "AI 技术",
+    "人工智能": "AI 技术",
+    "web开发": "软件开发",
+    "前端开发": "软件开发",
+    "后端开发": "软件开发",
+}
 
 
 def parse_tags(value: str | list[str] | None) -> list[str]:
@@ -44,6 +52,12 @@ def normalize_item(row) -> dict:
     item = dict(row)
     item["tags"] = parse_tags(item.get("tags"))
     return item
+
+
+def normalize_category(value: str | None) -> str:
+    category = " ".join((value or "未分类").strip().split()) or "未分类"
+    alias_key = category.casefold().replace(" ", "")
+    return CATEGORY_ALIASES.get(alias_key, category)
 
 
 def build_overview(items: list[dict]) -> dict:
@@ -129,6 +143,7 @@ def build_graph(items: list[dict]) -> dict:
             "label": item["title"],
             "type": "knowledge",
             "knowledge_id": item["id"],
+            "category": normalize_category(item.get("category")),
             "weight": max(1, len(knowledge_concepts[item["id"]])),
         }
         for item in items
@@ -182,9 +197,25 @@ def build_graph(items: list[dict]) -> dict:
         }
         for pair, data in strongest_relations
     )
+    category_items = defaultdict(list)
+    for item in items:
+        category_items[normalize_category(item.get("category"))].append(item["id"])
+    categories = [
+        {
+            "id": f"category:{name.casefold()}",
+            "label": name,
+            "knowledge_count": len(knowledge_ids),
+            "knowledge_ids": knowledge_ids,
+        }
+        for name, knowledge_ids in sorted(
+            category_items.items(),
+            key=lambda entry: (-len(entry[1]), entry[0]),
+        )
+    ]
     return {
         "nodes": nodes,
         "links": links,
+        "categories": categories,
         "knowledge_count": len(items),
         "concept_count": len(allowed_concepts),
         "relation_count": len(links),

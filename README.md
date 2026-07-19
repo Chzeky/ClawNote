@@ -11,7 +11,7 @@ ClawNote 是一个基于 OpenClaw 多 Agent 协作的个人智能知识管家。
                                       -> qa 检索 -> RAG 回答与引用
 ```
 
-网页与文本采集已有确定性脚本；Web 工作台支持知识概览、搜索、详情、增删改查，并可通过粘贴文本、抓取网页或上传 TXT/Markdown 导入内容，再由 organizer 自动生成标题、摘要、分类和标签草稿。Web 智能问答会先从 SQLite 检索证据，再由 qa Agent 生成带知识编号和来源链接的回答。知识图谱和标签 Jaccard 推荐均已接入 Web，RSS 定时任务和图谱持久化仍在迭代。
+网页与文本采集已有确定性脚本；Web 工作台支持知识概览、搜索、详情、增删改查，并可通过粘贴文本、抓取网页或上传 TXT/Markdown 导入内容，再由 organizer 自动生成标题、摘要、分类和标签草稿。Web 智能问答会先从 SQLite 检索证据，再由 qa Agent 生成带知识编号和来源链接的回答。知识图谱提供“分类气泡”和“关系网络”双模式，可按学科、知识、主题逐层展开；标签 Jaccard 推荐也已接入 Web。RSS 定时任务和图谱持久化仍在迭代。
 
 ## Agent 与 Skill
 
@@ -132,7 +132,7 @@ npm install
 npm test
 ```
 
-测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、RAG 证据检索与严格输出、概览统计、Web 图谱、标签推荐、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、网页正文与 MathJax 清洗、引用来源、性能基线和 Skill 目录结构。当前 Python 41 项、TypeScript/Jest 19 项测试全部通过。
+测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、RAG 证据检索与严格输出、概览统计、分层 Web 图谱、标签推荐、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、网页正文与 MathJax 清洗、引用来源、性能基线和 Skill 目录结构。当前 Python 42 项、TypeScript/Jest 19 项测试全部通过。
 
 ## 安全说明
 

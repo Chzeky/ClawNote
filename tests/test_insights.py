@@ -4,6 +4,7 @@ from backend.app.insights import (
     build_graph,
     build_overview,
     jaccard_similarity,
+    normalize_category,
     recommend_items,
 )
 
@@ -47,6 +48,13 @@ class InsightTests(unittest.TestCase):
         self.assertIn("knowledge:2", node_ids)
         self.assertIn("concept:rag", node_ids)
         self.assertGreater(graph["relation_count"], 0)
+        self.assertEqual(graph["categories"][0]["label"], "AI 技术")
+        self.assertEqual(graph["categories"][0]["knowledge_count"], 2)
+
+    def test_category_aliases_are_normalized_for_graph_display(self):
+        self.assertEqual(normalize_category("AI"), "AI 技术")
+        self.assertEqual(normalize_category("AI技术"), "AI 技术")
+        self.assertEqual(normalize_category("后端开发"), "软件开发")
 
     def test_recommendations_use_jaccard_tag_similarity(self):
         result = recommend_items(ITEMS, 2, 5)

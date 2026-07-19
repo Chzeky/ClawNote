@@ -781,6 +781,177 @@ main > section {
 }
 
 /* Graph */
+.graph-mode-control {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(104px, 1fr));
+  gap: 3px;
+  padding: 3px;
+  margin: -6px 0 14px;
+  background: #e9eeeb;
+  border-radius: 6px;
+}
+
+.graph-mode-control button {
+  min-height: 36px;
+  padding: 0 13px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-mode-control button.active {
+  color: var(--green-dark);
+  font-weight: 700;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(30 45 38 / 12%);
+}
+
+.bubble-graph {
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.bubble-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 52px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bubble-breadcrumb,
+.bubble-breadcrumb span,
+.bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.bubble-breadcrumb {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bubble-breadcrumb::-webkit-scrollbar {
+  display: none;
+}
+
+.bubble-breadcrumb span {
+  flex: 0 0 auto;
+}
+
+.bubble-breadcrumb i {
+  color: var(--line-strong);
+  font-style: normal;
+}
+
+.bubble-breadcrumb button,
+.bubble-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 7px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.bubble-breadcrumb span:last-child button {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.bubble-actions button:hover,
+.bubble-breadcrumb button:hover {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.bubble-actions .open-knowledge {
+  color: #fff;
+  background: var(--green);
+}
+
+.bubble-actions .open-knowledge:hover {
+  color: #fff;
+  background: var(--green-dark);
+}
+
+.bubble-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 480px;
+  overflow-x: auto;
+  background: #fbfcfb;
+}
+
+.bubble-canvas svg {
+  display: block;
+  width: 100%;
+  min-width: 100%;
+  aspect-ratio: 90 / 62;
+  max-height: 650px;
+}
+
+.bubble-node {
+  cursor: default;
+}
+
+.bubble-node[role='button'] {
+  cursor: pointer;
+}
+
+.bubble-node circle {
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.bubble-node[role='button']:hover circle,
+.bubble-node[role='button']:focus circle {
+  stroke-width: 3;
+  filter: brightness(0.98);
+}
+
+.bubble-node text {
+  fill: #2a3932;
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.bubble-node.category text {
+  fill: #fff;
+  font-size: 16px;
+}
+
+.bubble-node.knowledge text {
+  font-size: 12px;
+}
+
+.bubble-node .bubble-count {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.76;
+}
+
+.bubble-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
 .graph-workspace {
   overflow: hidden;
   background: var(--panel);
@@ -1361,6 +1532,36 @@ main > section {
   .graph-legend {
     gap: 12px;
     overflow-x: auto;
+  }
+
+  .bubble-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bubble-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .bubble-canvas {
+    min-height: 0;
+  }
+
+  .bubble-node.category text {
+    font-size: 25px;
+  }
+
+  .bubble-node.knowledge text {
+    font-size: 18px;
+  }
+
+  .bubble-node.concept text {
+    font-size: 15px;
+  }
+
+  .bubble-node .bubble-count {
+    font-size: 14px;
   }
 
   .recommendation-heading label {
