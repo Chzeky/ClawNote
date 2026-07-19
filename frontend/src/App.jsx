@@ -117,45 +117,20 @@ function bestRecommendationSource(items) {
   ))?.id || items[0]?.id || null
 }
 
-function truncateLabel(value, maxLength = 14) {
-  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value
-}
-
-function graphLayout(nodes) {
-  const positions = new Map()
-  const center = nodes.find((node) => node.role === 'focus')
-  const concepts = nodes.filter((node) => node.type === 'concept')
-  const related = nodes.filter((node) => node.type === 'knowledge' && node.role !== 'focus')
-  if (center) positions.set(center.id, { x: 480, y: 260 })
-  concepts.forEach((node, index) => {
-    const angle = -Math.PI / 2 + (index / Math.max(1, concepts.length)) * Math.PI * 2
-    positions.set(node.id, {
-      x: 480 + Math.cos(angle) * 145,
-      y: 260 + Math.sin(angle) * 125,
-    })
-  })
-  related.forEach((node, index) => {
-    const angle = -Math.PI / 2 + (index / Math.max(1, related.length)) * Math.PI * 2
-    positions.set(node.id, {
-      x: 480 + Math.cos(angle) * 330,
-      y: 260 + Math.sin(angle) * 205,
-    })
-  })
-  return positions
-}
-
-function buildFocusedRelationGraph(graph, knowledgeId) {
+function buildRelationSummary(graph, knowledgeId) {
   const focusNode = graph.nodes.find((node) => (
     node.type === 'knowledge' && node.knowledge_id === knowledgeId
   ))
-  if (!focusNode) return { nodes: [], links: [] }
+  if (!focusNode) return { focus: null, items: [] }
 
-  const conceptIds = graph.links
+  const concepts = new Map(
+    graph.nodes.filter((node) => node.type === 'concept').map((node) => [node.id, node]),
+  )
+  const focusConceptIds = graph.links
     .filter((link) => link.type === 'has_concept' && link.source === focusNode.id)
     .map((link) => link.target)
-    .slice(0, 10)
-  const conceptSet = new Set(conceptIds)
-  const relatedScores = new Map()
+  const conceptSet = new Set(focusConceptIds)
+  const relationMap = new Map()
   graph.links
     .filter((link) => (
       link.type === 'has_concept' &&
@@ -163,25 +138,24 @@ function buildFocusedRelationGraph(graph, knowledgeId) {
       link.source !== focusNode.id
     ))
     .forEach((link) => {
-      relatedScores.set(link.source, (relatedScores.get(link.source) || 0) + 1)
+      const values = relationMap.get(link.source) || []
+      values.push(concepts.get(link.target)?.label || link.target.replace('concept:', ''))
+      relationMap.set(link.source, values)
     })
-  const relatedIds = [...relatedScores.entries()]
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
-    .slice(0, 8)
-    .map(([id]) => id)
-  const visibleIds = new Set([focusNode.id, ...conceptIds, ...relatedIds])
-  const nodes = graph.nodes
-    .filter((node) => visibleIds.has(node.id))
-    .map((node) => ({
-      ...node,
-      role: node.id === focusNode.id ? 'focus' : relatedIds.includes(node.id) ? 'related' : 'concept',
+  const knowledge = new Map(
+    graph.nodes.filter((node) => node.type === 'knowledge').map((node) => [node.id, node]),
+  )
+  const items = [...relationMap.entries()]
+    .map(([id, sharedConcepts]) => ({
+      ...knowledge.get(id),
+      sharedConcepts,
+      strength: sharedConcepts.length,
+      reason: `共同主题：${sharedConcepts.slice(0, 4).join('、')}`,
     }))
-  const links = graph.links.filter((link) => (
-    link.type === 'has_concept' &&
-    visibleIds.has(link.source) &&
-    conceptSet.has(link.target)
-  ))
-  return { nodes, links }
+    .filter((item) => item.id)
+    .sort((left, right) => right.strength - left.strength || right.knowledge_id - left.knowledge_id)
+    .slice(0, 6)
+  return { focus: focusNode, items }
 }
 
 function App() {
@@ -661,10 +635,9 @@ function App() {
     }
   }
 
-  const relationGraph = graph && graphFocusId
-    ? buildFocusedRelationGraph(graph, graphFocusId)
-    : { nodes: [], links: [] }
-  const graphPositions = graphLayout(relationGraph.nodes)
+  const relationSummary = graph && graphFocusId
+    ? buildRelationSummary(graph, graphFocusId)
+    : { focus: null, items: [] }
 
   return (
     <main>
@@ -921,54 +894,37 @@ function App() {
           {graph && !insightLoading && graph.nodes.length > 0 && graphMode === 'bubbles' && (
             <KnowledgeBubbleGraph graph={graph} onOpenKnowledge={openDetail} />
           )}
-          {graph && !insightLoading && graphMode === 'relations' && relationGraph.nodes.length > 1 && (
-            <div className="graph-workspace">
-              <div className="graph-legend">
-                <span><i className="focus-dot" />中心知识</span>
-                <span><i className="knowledge-dot" />相关知识</span>
-                <span><i className="concept-dot" />主题实体</span>
-                <span><i className="relation-line" />共享主题</span>
-              </div>
-              <div className="graph-canvas">
-                <svg viewBox="0 0 960 520" role="img" aria-label="以中心知识展开的关联探索图">
-                  <g className="graph-links">
-                    {relationGraph.links.map((link, index) => {
-                      const source = graphPositions.get(link.source)
-                      const target = graphPositions.get(link.target)
-                      if (!source || !target) return null
-                      return <line key={`${link.source}-${link.target}-${index}`}
-                        x1={source.x} y1={source.y} x2={target.x} y2={target.y}
-                        className="concept-link" />
-                    })}
-                  </g>
-                  <g className="graph-nodes">
-                    {relationGraph.nodes.map((node) => {
-                      const position = graphPositions.get(node.id)
-                      if (!position) return null
-                      const isKnowledge = node.type === 'knowledge'
-                      const isFocus = node.role === 'focus'
-                      return (
-                        <g key={node.id} transform={`translate(${position.x} ${position.y})`}
-                          className={isKnowledge
-                            ? `knowledge-node ${isFocus ? 'focus-node' : 'related-node'}`
-                            : 'concept-node'}
-                          onClick={isKnowledge ? () => setGraphFocusId(node.knowledge_id) : undefined}>
-                          <title>{node.label}</title>
-                          {isKnowledge
-                            ? <rect x={isFocus ? '-130' : '-110'} y={isFocus ? '-23' : '-18'}
-                              width={isFocus ? '260' : '220'} height={isFocus ? '46' : '36'} rx="6" />
-                            : <circle r={Math.min(17, 10 + node.weight * 1.5)} />}
-                          <text textAnchor={isKnowledge ? 'middle' : 'start'}
-                            x={isKnowledge ? 0 : 22} y="5">{truncateLabel(node.label, isFocus ? 20 : isKnowledge ? 15 : 10)}</text>
-                        </g>
-                      )
-                    })}
-                  </g>
-                </svg>
+          {graph && !insightLoading && graphMode === 'relations' && relationSummary.items.length > 0 && (
+            <div className="relation-explorer">
+              <article className="relation-focus">
+                <span>当前知识</span>
+                <strong>{relationSummary.focus.label}</strong>
+                <small>{relationSummary.focus.category || '未分类'}</small>
+                <button type="button" onClick={() => openDetail(relationSummary.focus.knowledge_id)}>
+                  <BookOpen size={15} />查看详情
+                </button>
+              </article>
+              <div className="relation-list">
+                {relationSummary.items.map((item, index) => (
+                  <button type="button" key={item.id} onClick={() => setGraphFocusId(item.knowledge_id)}>
+                    <span className="relation-rank">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="relation-copy">
+                      <strong>{item.label}</strong>
+                      <small>{item.reason}</small>
+                      <span className="tags">
+                        {item.sharedConcepts.slice(0, 5).map((concept) => <i key={concept}>{concept}</i>)}
+                      </span>
+                    </span>
+                    <span className="relation-actions">
+                      <small>{item.strength} 个共同主题</small>
+                      <ChevronRight size={18} />
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           )}
-          {graph && !insightLoading && graphMode === 'relations' && relationGraph.nodes.length <= 1 && (
+          {graph && !insightLoading && graphMode === 'relations' && relationSummary.items.length === 0 && (
             <p className="status-message">当前知识暂时没有可展开的共享主题。</p>
           )}
           {graph && graph.nodes.length === 0 && <p className="status-message">知识库为空，暂无可构建的关系。</p>}
