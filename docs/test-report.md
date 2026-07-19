@@ -38,11 +38,12 @@
 | TC-25 | URL 采集 API 拒绝 loopback 地址 | 通过 |
 | TC-26 | 网页重定向到 loopback 时拒绝请求 | 通过 |
 | TC-27 | 已配置代理时兼容 VPN Fake-IP 域名解析 | 通过 |
+| TC-28 | 相同正文和标题提示复用 organizer 草稿缓存 | 通过 |
 
 执行结果：
 
 ```text
-Ran 27 tests
+Ran 28 tests
 
 OK
 ```
@@ -88,6 +89,7 @@ Tests:       19 passed, 19 total
 | IT-06 | React Web MVP 桌面端和 390×844 移动端交互与布局 | 通过 | 本地浏览器人工验收 |
 | IT-07 | 上传 Markdown 并返回统一采集内容 | 通过 | 本地 FastAPI 真实接口调用 |
 | IT-08 | 抓取公网网页并生成 organizer 草稿预览 | 通过 | `example.com` 端到端浏览器验收 |
+| IT-09 | 强化学习教程首次及缓存整理性能对照 | 通过 | 首次约 6.6 秒，缓存约 0.002 秒 |
 
 ## 已知限制
 

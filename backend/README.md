@@ -25,3 +25,5 @@ OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
 - `GET /api/knowledge/{id}`: complete knowledge detail.
 - `PATCH /api/knowledge/{id}`: partial title, content, summary, category, or tag update.
 - `DELETE /api/knowledge/{id}`: delete one knowledge item and its synchronized FTS row.
+
+Organizer drafts use a bounded in-memory LRU cache keyed by content and title hint. The cache contains no API credentials and is cleared when the backend restarts.

@@ -56,6 +56,7 @@ function App() {
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [processingLabel, setProcessingLabel] = useState('')
   const [createStep, setCreateStep] = useState('input')
   const [importMode, setImportMode] = useState('text')
   const [createError, setCreateError] = useState('')
@@ -162,6 +163,7 @@ function App() {
     setSelectedFile(null)
     setImportSource(EMPTY_SOURCE)
     setImportNotice('')
+    setProcessingLabel('')
     setCreateForm({
       title: '',
       category: '未分类',
@@ -193,6 +195,8 @@ function App() {
   async function prepareKnowledge(event) {
     event.preventDefault()
     setAnalyzing(true)
+    setProcessingLabel(importMode === 'url' ? '正在抓取网页...' :
+      importMode === 'file' ? '正在读取文件...' : 'AI 正在整理...')
     setCreateError('')
     setImportNotice('')
     try {
@@ -244,6 +248,7 @@ function App() {
 
       setCreateForm((current) => ({ ...current, content }))
       setImportSource(source)
+      setProcessingLabel('AI 正在整理...')
 
       const response = await fetch(`${API_BASE}/api/knowledge/analyze`, {
         method: 'POST',
@@ -267,6 +272,7 @@ function App() {
       setCreateError(requestError.message)
     } finally {
       setAnalyzing(false)
+      setProcessingLabel('')
     }
   }
 
@@ -590,7 +596,7 @@ function App() {
                       disabled={analyzing || (importMode === 'file' && !selectedFile)}>
                       <Sparkles size={17} />
                       {analyzing
-                        ? '正在提取并整理...'
+                        ? processingLabel
                         : importMode === 'text' ? 'AI 整理' : '提取并整理'}
                     </button>
                   </div>
