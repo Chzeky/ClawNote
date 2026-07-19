@@ -1,11 +1,19 @@
 import json
 import sqlite3
 from contextlib import closing
+from types import SimpleNamespace
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.organizer import (
+    CONFIG,
+    KnowledgeDraft,
+    OrganizerAnalysisError,
+    analyze_knowledge_draft,
+)
+from scripts import collect_content
 from scripts.knowledge_db import connect
 
 
@@ -15,6 +23,42 @@ class TextKnowledgeCreate(BaseModel):
     summary: str = ""
     category: str = "未分类"
     tags: list[str] = Field(default_factory=list)
+    source: str = Field(default="web_frontend", max_length=200)
+    source_url: str = Field(default="", max_length=2000)
+    content_type: str = Field(default="text", max_length=50)
+
+
+class AnalyzeKnowledgeRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    content: str = Field(min_length=20, max_length=20000)
+    title_hint: str | None = Field(default=None, max_length=200)
+
+
+class UrlCollectRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    url: str = Field(min_length=8, max_length=2000)
+
+
+class CollectedContent(BaseModel):
+    title: str
+    content: str
+    source_type: str
+    source: str
+    truncated: bool
+
+
+def collected_response(result: dict) -> CollectedContent:
+    max_chars = int(CONFIG["maxInputChars"])
+    content = result["content"]
+    return CollectedContent(
+        title=result["title"],
+        content=content[:max_chars],
+        source_type=result["source_type"],
+        source=result["source"],
+        truncated=len(content) > max_chars,
+    )
 
 
 app = FastAPI(
@@ -40,6 +84,51 @@ def health():
         "status": "ok",
         "service": "clawnote-api",
     }
+
+
+@app.post("/api/knowledge/analyze", response_model=KnowledgeDraft)
+async def analyze_knowledge(payload: AnalyzeKnowledgeRequest):
+    try:
+        return await analyze_knowledge_draft(
+            payload.content.strip(),
+            payload.title_hint,
+        )
+    except OrganizerAnalysisError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="AI 整理失败，请检查 OpenClaw 和模型连接后重试",
+        ) from error
+
+
+@app.post("/api/collect/url", response_model=CollectedContent)
+def collect_url(payload: UrlCollectRequest):
+    try:
+        result = collect_content.collect_url(SimpleNamespace(
+            url=payload.url,
+            title=None,
+            timeout=15,
+        ))
+        return collected_response(result)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except (OSError, UnicodeError) as error:
+        raise HTTPException(
+            status_code=502,
+            detail="网页抓取失败，请检查网址和网络连接",
+        ) from error
+
+
+@app.post("/api/collect/file", response_model=CollectedContent)
+async def collect_file(file: UploadFile = File(...)):
+    filename = file.filename or "upload.txt"
+    try:
+        payload = await file.read(collect_content.MAX_RESPONSE_BYTES + 1)
+        result = collect_content.collect_uploaded_file(filename, payload)
+        return collected_response(result)
+    except (UnicodeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    finally:
+        await file.close()
 
 
 @app.get("/api/knowledge")
@@ -172,9 +261,9 @@ def create_text_knowledge(payload: TextKnowledgeCreate):
         payload.summary.strip(),
         payload.category.strip() or "未分类",
         json.dumps(payload.tags, ensure_ascii=False),
-        "web_frontend",
-        "",
-        "text",
+        payload.source.strip() or "web_frontend",
+        payload.source_url.strip(),
+        payload.content_type.strip() or "text",
     )
 
     with closing(connect()) as connection:

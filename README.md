@@ -11,7 +11,7 @@ ClawNote 是一个基于 OpenClaw 多 Agent 协作的个人智能知识管家。
                                       -> qa 检索 -> RAG 回答与引用
 ```
 
-网页与文本采集已有确定性脚本；知识图谱具备基于实体共现和原句证据的基线实现，推荐具备标签 Jaccard 相似度算法。RSS 定时任务、图谱持久化和完整 Web 前端仍在迭代。
+网页与文本采集已有确定性脚本；Web MVP 支持知识搜索、详情、增删改查，并可通过粘贴文本、抓取网页或上传 TXT/Markdown 导入内容，再由 organizer 自动生成标题、摘要、分类和标签草稿。知识图谱具备基于实体共现和原句证据的基线实现，推荐具备标签 Jaccard 相似度算法。RSS 定时任务和图谱持久化仍在迭代。
 
 ## Agent 与 Skill
 
@@ -68,8 +68,8 @@ ClawNote/
 ├── scripts/            # 采集与知识库命令行工具
 ├── tests/              # 自动化测试
 ├── skill-tests/        # TypeScript 与 Python 跨语言集成测试
-├── backend/            # FastAPI Web API（开发中）
-├── frontend/           # React Web 界面（开发中）
+├── backend/            # FastAPI Web API 与 OpenClaw organizer 适配器
+├── frontend/           # React 知识管理 Web MVP
 ├── docs/               # 开发日志、测试报告和渠道证据
 ├── config.json         # 项目级脱敏配置
 ├── permissions.json    # Agent 最小权限策略（脱敏）
@@ -119,10 +119,10 @@ python3 scripts/knowledge_db.py search --query "RAG" --limit 5
 
 ## 测试
 
-Python 核心逻辑与项目结构：
+Python 核心逻辑、Web API 与项目结构：
 
 ```bash
-python3 -m unittest discover -s tests -v
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
 TypeScript Skill：
@@ -132,7 +132,7 @@ npm install
 npm test
 ```
 
-测试覆盖数据库初始化、参数化写入、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、内容采集、引用来源、图谱关系、标签推荐、性能基线和 Skill 目录结构。
+测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、内容采集、引用来源、图谱关系、标签推荐、性能基线和 Skill 目录结构。
 
 ## 安全说明
 
@@ -140,7 +140,10 @@ npm test
 - OpenClaw 真实运行配置保存在 `~/.openclaw/openclaw.json`，不得提交。
 - `data/*.db`、运行日志、会话记忆和 workspace 状态已加入 `.gitignore`。
 - 网页采集拒绝本机、内网和保留地址，降低 SSRF 风险。
+- 网页重定向会逐次重新校验目标；VPN Fake-IP 仅在已配置代理时兼容，并继续拒绝显式内网 IP。
+- 上传文件仅接受 UTF-8 `.txt`/`.md`，单个文件最大 2 MiB。
 - 检索优先使用 SQLite FTS5；中文关键词未命中时自动使用参数化 `LIKE` 兜底。
+- 智能导入把用户正文标记为不可信数据；organizer 仅返回严格校验的草稿，用户确认后才写入数据库。
 
 ## 渠道
 

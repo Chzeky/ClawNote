@@ -4,7 +4,7 @@
 
 - 测试日期：2026-07-19
 - 测试环境：WSL Ubuntu、Python 3、Node.js 24、TypeScript、SQLite FTS5、OpenClaw 2026.6.11
-- Python 测试命令：`python3 -m unittest discover -s tests -v`
+- Python 测试命令：`.venv/bin/python -m unittest discover -s tests -v`
 - TypeScript 测试命令：`npm test`
 
 ## 自动化测试结果
@@ -27,11 +27,22 @@
 | TC-14 | 五个 Skill 均包含 TypeScript 规范文件且配置 JSON 有效 | 通过 |
 | TC-15 | FastAPI 知识新增、详情、修改、删除完整生命周期 | 通过 |
 | TC-16 | 空更新请求和不存在知识正确返回 422/404 | 通过 |
+| TC-17 | 解析 OpenClaw 外层响应与 Markdown 围栏中的 JSON 草稿 | 通过 |
+| TC-18 | organizer 输出缺少字段或字段非法时拒绝接收 | 通过 |
+| TC-19 | 草稿提示将用户正文标记为不可信 JSON 数据 | 通过 |
+| TC-20 | 分析接口返回 organizer 草稿且不写入知识库 | 通过 |
+| TC-21 | 分析接口拒绝长度不足的正文 | 通过 |
+| TC-22 | 上传 Markdown 文件并提取标题与正文 | 通过 |
+| TC-23 | 拒绝不支持的上传文件扩展名 | 通过 |
+| TC-24 | 文件采集 API 返回统一内容结构 | 通过 |
+| TC-25 | URL 采集 API 拒绝 loopback 地址 | 通过 |
+| TC-26 | 网页重定向到 loopback 时拒绝请求 | 通过 |
+| TC-27 | 已配置代理时兼容 VPN Fake-IP 域名解析 | 通过 |
 
 执行结果：
 
 ```text
-Ran 16 tests
+Ran 27 tests
 
 OK
 ```
@@ -73,6 +84,10 @@ Tests:       19 passed, 19 total
 | IT-02 | organizer 整理并写入 SQLite | 通过 | `docs/evidence/01-feishu-full-pipeline-1.png` |
 | IT-03 | qa 检索后回答并引用知识编号 | 通过 | `docs/evidence/01-feishu-full-pipeline-1.png` |
 | IT-04 | steward 调度五个业务 Agent 完成闭环 | 通过 | `docs/evidence/01-feishu-full-pipeline-2.png` |
+| IT-05 | Web 智能导入生成草稿，确认前数据库条目数不变 | 通过 | 本地 FastAPI 与 OpenClaw organizer 联调 |
+| IT-06 | React Web MVP 桌面端和 390×844 移动端交互与布局 | 通过 | 本地浏览器人工验收 |
+| IT-07 | 上传 Markdown 并返回统一采集内容 | 通过 | 本地 FastAPI 真实接口调用 |
+| IT-08 | 抓取公网网页并生成 organizer 草稿预览 | 通过 | `example.com` 端到端浏览器验收 |
 
 ## 已知限制
 
@@ -80,7 +95,7 @@ Tests:       19 passed, 19 total
 - 知识图谱已有规则基线但尚未持久化，实体词表仍需扩展。
 - 推荐当前为内容标签相似度，尚未积累协同过滤所需的用户行为数据。
 - 当前 RAG 优先使用 SQLite FTS5，中文未命中时使用参数化 `LIKE` 兜底；该方案不是语义检索，后续可增加向量检索。
-- Web 前端与 FastAPI 接口已进入 MVP 开发阶段，完整 Agent 调度仍以飞书入口为主。
+- Web 前端已支持知识浏览、搜索、增删改查，以及文本、网页、文件三种 organizer 智能导入方式；完整五 Agent 流水线调度仍以飞书入口为主。
 
 ## 结论
 

@@ -1,0 +1,9 @@
+{
+  "openclawCommand": "openclaw",
+  "organizerAgentId": "clawnote-organizer",
+  "sessionPrefix": "web-draft",
+  "thinking": "low",
+  "timeoutSeconds": 90,
+  "maxInputChars": 20000,
+  "maxOutputBytes": 1048576
+}
