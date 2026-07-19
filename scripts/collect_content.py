@@ -6,6 +6,7 @@ import json
 import os
 import socket
 from datetime import datetime, timezone
+from functools import lru_cache
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlparse
@@ -15,6 +16,7 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_WEB_RESPONSE_BYTES = 2 * 1024 * 1024
 SUPPORTED_FILES = {".txt", ".md"}
 FAKE_IP_NETWORK = ipaddress.ip_network("198.18.0.0/15")
+FAKE_IP_PROBE_HOST = "example.com"
 
 
 class ArticleParser(HTMLParser):
@@ -147,6 +149,18 @@ def collect_uploaded_file(filename, payload, title=None, source=None):
     )
 
 
+@lru_cache(maxsize=1)
+def fake_ip_dns_active():
+    try:
+        addresses = socket.getaddrinfo(FAKE_IP_PROBE_HOST, 443)
+    except OSError:
+        return False
+    return any(
+        ipaddress.ip_address(address[4][0]) in FAKE_IP_NETWORK
+        for address in addresses
+    )
+
+
 def validate_public_url(url):
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
@@ -164,9 +178,10 @@ def validate_public_url(url):
         os.environ.get(f"{parsed.scheme}_proxy")
         or os.environ.get(f"{parsed.scheme.upper()}_PROXY")
     )
+    fake_ip_allowed = proxy_enabled or fake_ip_dns_active()
     for address in socket.getaddrinfo(parsed.hostname, parsed.port or default_port):
         ip = ipaddress.ip_address(address[4][0])
-        if proxy_enabled and ip in FAKE_IP_NETWORK:
+        if fake_ip_allowed and ip in FAKE_IP_NETWORK:
             continue
         if not ip.is_global:
             raise ValueError("禁止访问本机、内网或保留地址")

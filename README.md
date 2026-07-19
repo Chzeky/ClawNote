@@ -141,14 +141,14 @@ npm install
 npm test
 ```
 
-测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、RAG 证据检索与严格输出、概览统计、分层 Web 图谱、标签推荐、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、网页正文与 MathJax 清洗、引用来源、性能基线和 Skill 目录结构。当前 Python 47 项、TypeScript/Jest 19 项测试全部通过。
+测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、RAG 证据检索与严格输出、概览统计、分层 Web 图谱、标签推荐、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、网页正文与 MathJax 清洗、引用来源、性能基线和 Skill 目录结构。当前 Python 49 项、TypeScript/Jest 19 项测试全部通过。
 
 ## 安全说明
 
 - 仓库不包含 App Secret、API Key、Gateway Token 或设备令牌。
 - OpenClaw 真实运行配置保存在 `~/.openclaw/openclaw.json`，不得提交。
 - `data/*.db`、运行日志、会话记忆和 workspace 状态已加入 `.gitignore`。
-- 网页采集拒绝本机、内网和保留地址，降低 SSRF 风险。
+- 网页采集拒绝本机、内网和保留地址；仅当检测到代理或 VPN Fake-IP DNS 模式时，允许域名解析到 `198.18.0.0/15`，直接输入该网段 IP 仍会被拒绝。
 - 网页重定向会逐次重新校验目标；VPN Fake-IP 仅在已配置代理时兼容，并继续拒绝显式内网 IP。
 - 上传文件仅接受 UTF-8 `.txt`/`.md`，单个文件最大 10 MiB；AI 整理使用前 20000 字。
 - 检索优先使用 SQLite FTS5；中文关键词未命中时自动使用参数化 `LIKE` 兜底。

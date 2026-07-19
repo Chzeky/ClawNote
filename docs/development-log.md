@@ -158,5 +158,6 @@
 - 品牌：顶部标识由通用叠层图标调整为“打开的知识笔记 + 智能星芒”，搜索按钮统一使用高对比白色文字和图标。
 - 图谱：分类气泡更新为灰紫、青绿、蓝、旧金、珊瑚和橄榄绿低饱和色板，保留原有三级交互与文字自适应行为。
 - 网页采集：兼容同域 HTTPS 被错误降级到 HTTP 的重定向，在保留 SSRF 校验的同时维持 HTTPS，修复强化学习教程页面的无限跳转错误。
+- VPN 兼容：自动识别 TUN/Fake-IP DNS 模式，支持 WSL NAT 下域名解析到 `198.18.0.0/15`；显式 Fake-IP、localhost 和真实内网地址仍保持拒绝。
 - 文件上传：TXT/Markdown 上限由 2 MiB 提升到 10 MiB，前端即时校验、后端最终校验；AI 整理仍使用前 20000 字。网页响应上限继续保持 2 MiB。
-- 验证：目标强化学习页面成功提取 4373 字正文；Python 47 项、TypeScript/Jest 19 项、前端 ESLint 和 Vite production build 全部通过。
+- 验证：目标强化学习页面成功提取 4373 字正文；Python 49 项、TypeScript/Jest 19 项、前端 ESLint 和 Vite production build 全部通过。

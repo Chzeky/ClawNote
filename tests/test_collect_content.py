@@ -108,6 +108,21 @@ class CollectContentTests(unittest.TestCase):
                 patch("socket.getaddrinfo", return_value=fake_result):
             collect_content.validate_public_url("https://example.com/article")
 
+    def test_allows_fake_ip_when_vpn_dns_mode_is_detected(self):
+        fake_result = [(2, 1, 6, "", ("198.18.0.10", 443))]
+        with patch.dict("os.environ", {}, clear=True), \
+                patch("socket.getaddrinfo", return_value=fake_result), \
+                patch.object(collect_content, "fake_ip_dns_active", return_value=True):
+            collect_content.validate_public_url("https://example.com/article")
+
+    def test_rejects_fake_ip_without_proxy_or_vpn_dns_mode(self):
+        fake_result = [(2, 1, 6, "", ("198.18.0.10", 443))]
+        with patch.dict("os.environ", {}, clear=True), \
+                patch("socket.getaddrinfo", return_value=fake_result), \
+                patch.object(collect_content, "fake_ip_dns_active", return_value=False):
+            with self.assertRaises(ValueError):
+                collect_content.validate_public_url("https://example.com/article")
+
 
 if __name__ == "__main__":
     unittest.main()

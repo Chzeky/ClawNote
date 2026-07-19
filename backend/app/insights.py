@@ -370,8 +370,10 @@ def learning_reason(item: dict, source: dict, stage: str, matched_tags: list[str
 
 def suggest_knowledge_gaps(items: list[dict], source: dict) -> list[dict]:
     existing = {tag.casefold() for item in items for tag in item["tags"]}
-    source_keys = {tag.casefold() for tag in source["tags"]}
-    source_keys.add(normalize_category(source.get("category")).casefold())
+    source_keys = list(dict.fromkeys(tag.casefold() for tag in source["tags"]))
+    category_key = normalize_category(source.get("category")).casefold()
+    if category_key not in source_keys:
+        source_keys.append(category_key)
     suggestions = []
     seen = set()
     for key in source_keys:
