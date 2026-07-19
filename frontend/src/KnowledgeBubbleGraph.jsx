@@ -4,7 +4,7 @@ import { ArrowLeft, BookOpen } from 'lucide-react'
 
 const WIDTH = 900
 const HEIGHT = 620
-const CATEGORY_COLORS = ['#19704f', '#a8662b', '#2b6f72', '#a34840', '#686a86', '#55723f']
+const CATEGORY_COLORS = ['#735986', '#417e76', '#557db0', '#b7833e', '#c5655a', '#6d7d58']
 const MAX_CONCEPTS_PER_KNOWLEDGE = 10
 const LABEL_STYLE = {
   category: { max: 12, size: 16, lineGap: 15, countSize: 9 },
@@ -135,7 +135,7 @@ function nodeFill(node) {
 }
 
 function nodeStroke(node) {
-  return node.data.color || '#7c8a83'
+  return node.data.color || '#7f8b85'
 }
 
 export default function KnowledgeBubbleGraph({ graph, onOpenKnowledge }) {

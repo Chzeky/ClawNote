@@ -3,21 +3,22 @@
 }
 
 :root {
-  --ink: #19231f;
-  --muted: #68756f;
-  --subtle: #87918c;
-  --line: #d9e0dc;
-  --line-strong: #c7d0cb;
-  --panel: #ffffff;
-  --canvas: #f3f6f4;
-  --green: #146b4d;
-  --green-dark: #0f563e;
-  --green-soft: #e8f2ed;
-  --amber: #a8662b;
-  --amber-soft: #f8eee4;
-  --coral: #a34840;
-  --coral-soft: #f8ebe9;
-  --teal: #2b6f72;
+  --ink: #211f23;
+  --muted: #706b73;
+  --subtle: #928c95;
+  --line: #e4dfdc;
+  --line-strong: #d1cbc8;
+  --panel: #fcfbf9;
+  --canvas: #f3f1ed;
+  --green: #735986;
+  --green-dark: #5d466e;
+  --green-soft: #f0ebf3;
+  --amber: #a87938;
+  --amber-soft: #f8f1e8;
+  --coral: #c35f54;
+  --coral-soft: #faece9;
+  --teal: #417e76;
+  --font-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, serif;
   color: var(--ink);
 }
 
@@ -41,7 +42,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid rgb(20 107 77 / 18%);
+  outline: 3px solid rgb(115 89 134 / 20%);
   outline-offset: 2px;
 }
 
@@ -50,8 +51,13 @@ select:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px 28px;
-  padding-bottom: 0;
-  border-bottom: 1px solid var(--line);
+  margin-top: -22px;
+  padding: 18px 0 0;
+  color: #f7faf8;
+  background: #28232e;
+  border-bottom: 0;
+  box-shadow: 0 0 0 100vmax #28232e;
+  clip-path: inset(0 -100vmax);
 }
 
 .brand-lockup {
@@ -61,24 +67,42 @@ select:focus-visible {
 }
 
 .brand-mark {
+  position: relative;
   display: grid;
   width: 42px;
   height: 42px;
   place-items: center;
   color: #fff;
-  background: var(--green);
+  background: #735986;
   border-radius: 7px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  box-shadow: 0 5px 18px rgb(0 0 0 / 18%);
+}
+
+.brand-book {
+  stroke-width: 1.7;
+}
+
+.brand-spark {
+  position: absolute;
+  top: 7px;
+  right: 6px;
+  color: #f2d991;
+  fill: #f2d991;
+  stroke-width: 1.6;
 }
 
 .brand-lockup h1 {
   margin: 0;
-  font-size: 23px;
+  font-family: Georgia, var(--font-display);
+  font-size: 25px;
+  font-weight: 800;
   line-height: 1.1;
 }
 
 .brand-lockup p {
   margin: 5px 0 0;
-  color: var(--muted);
+  color: #c5bec9;
   font-size: 13px;
 }
 
@@ -92,23 +116,35 @@ select:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--muted);
+  color: #cec8d1;
   font-size: 13px;
 }
 
 .system-status i {
   width: 8px;
   height: 8px;
-  background: #279261;
+  background: #5fd0a7;
   border-radius: 50%;
-  box-shadow: 0 0 0 3px rgb(39 146 97 / 12%);
+  box-shadow: 0 0 0 3px rgb(95 208 167 / 14%);
+}
+
+.header-actions .create-button {
+  color: #604872;
+  background: #faf8fb;
+  border-color: #faf8fb;
+}
+
+.header-actions .create-button:hover {
+  color: #4f3b5e;
+  background: #eee8f1;
+  border-color: #eee8f1;
 }
 
 .primary-nav {
   display: flex;
   grid-column: 1 / -1;
   gap: 28px;
-  min-height: 48px;
+  min-height: 52px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -124,9 +160,9 @@ select:focus-visible {
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
-  min-height: 48px;
+  min-height: 52px;
   padding: 0 1px;
-  color: var(--muted);
+  color: #c0b9c4;
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -143,16 +179,16 @@ select:focus-visible {
 }
 
 .primary-nav button:hover {
-  color: var(--ink);
+  color: #ffffff;
 }
 
 .primary-nav button.active {
-  color: var(--green);
+  color: #d7b8e5;
   font-weight: 700;
 }
 
 .primary-nav button.active::after {
-  background: var(--green);
+  background: #b88bcc;
 }
 
 main > section {
@@ -177,7 +213,9 @@ main > section {
 .page-heading h2,
 .section-heading h2 {
   margin: 0;
-  font-size: 24px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 750;
   line-height: 1.2;
 }
 
@@ -189,9 +227,19 @@ main > section {
 }
 
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--amber);
   font-size: 11px;
   font-weight: 800;
+}
+
+.eyebrow::before {
+  width: 22px;
+  height: 1px;
+  content: '';
+  background: currentColor;
 }
 
 .create-button,
@@ -215,6 +263,13 @@ main > section {
   color: #fff;
   background: var(--green);
   border: 1px solid var(--green);
+}
+
+.search-button,
+.search-button span,
+.search-button svg {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
 }
 
 .create-button:hover,
@@ -317,6 +372,26 @@ main > section {
   border-radius: 7px;
 }
 
+.stat-grid article:nth-child(1) {
+  background: #f6f2f8;
+  border-top: 2px solid #9474a6;
+}
+
+.stat-grid article:nth-child(2) {
+  background: #fbf7ef;
+  border-top: 2px solid #c49a58;
+}
+
+.stat-grid article:nth-child(3) {
+  background: #f1f7f6;
+  border-top: 2px solid #6d9b94;
+}
+
+.stat-grid article:nth-child(4) {
+  background: #fbf4f2;
+  border-top: 2px solid #d28a81;
+}
+
 .stat-grid article svg {
   color: var(--green);
 }
@@ -340,7 +415,9 @@ main > section {
 
 .stat-grid strong {
   grid-column: 1 / -1;
+  font-family: var(--font-display);
   font-size: 30px;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
@@ -372,7 +449,9 @@ main > section {
 
 .panel-heading h3 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 16px;
+  font-weight: 750;
 }
 
 .panel-heading > span {
@@ -808,7 +887,7 @@ main > section {
   grid-template-columns: repeat(2, minmax(104px, 1fr));
   gap: 3px;
   padding: 3px;
-  background: #e9eeeb;
+  background: #efecf1;
   border-radius: 6px;
 }
 
@@ -931,7 +1010,7 @@ main > section {
   width: 100%;
   min-height: 480px;
   overflow-x: auto;
-  background: #fbfcfb;
+  background: #f8f6f3;
 }
 
 .bubble-canvas svg {
@@ -962,7 +1041,7 @@ main > section {
 }
 
 .bubble-node text {
-  fill: #2a3932;
+  fill: #302b33;
   font-size: 10px;
   font-weight: 700;
   pointer-events: none;
@@ -970,7 +1049,9 @@ main > section {
 
 .bubble-node.category text {
   fill: #fff;
+  font-family: var(--font-display);
   font-size: 16px;
+  font-weight: 800;
 }
 
 .bubble-node.knowledge text {
@@ -1575,6 +1656,8 @@ main > section {
   .app-header {
     grid-template-columns: 1fr auto;
     gap: 14px;
+    margin-top: -14px;
+    padding-top: 14px;
   }
 
   .system-status {
@@ -1604,7 +1687,7 @@ main > section {
 
   .page-heading h2,
   .section-heading h2 {
-    font-size: 21px;
+    font-size: 24px;
   }
 
   .stat-grid {

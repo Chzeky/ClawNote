@@ -11,7 +11,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_WEB_RESPONSE_BYTES = 2 * 1024 * 1024
 SUPPORTED_FILES = {".txt", ".md"}
 FAKE_IP_NETWORK = ipaddress.ip_network("198.18.0.0/15")
 
@@ -133,8 +134,8 @@ def collect_uploaded_file(filename, payload, title=None, source=None):
     suffix = Path(filename).suffix.lower()
     if suffix not in SUPPORTED_FILES:
         raise ValueError("仅支持 .txt 和 .md 文件")
-    if len(payload) > MAX_RESPONSE_BYTES:
-        raise ValueError("文件内容超过 2 MiB 限制")
+    if len(payload) > MAX_UPLOAD_BYTES:
+        raise ValueError("文件内容超过 10 MiB 限制")
     content = payload.decode("utf-8").strip()
     if not content:
         raise ValueError("文件内容不能为空")
@@ -173,6 +174,16 @@ def validate_public_url(url):
 
 class SafeRedirectHandler(HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+        source = urlparse(request.full_url) if request is not None else None
+        target = urlparse(new_url)
+        if (
+            source is not None
+            and source.scheme == "https"
+            and target.scheme == "http"
+            and source.hostname == target.hostname
+            and target.port is None
+        ):
+            new_url = target._replace(scheme="https").geturl()
         validate_public_url(new_url)
         return super().redirect_request(
             request,
@@ -200,8 +211,8 @@ def collect_url(args):
         content_type = response.headers.get_content_type()
         if content_type not in {"text/html", "text/plain", "application/xhtml+xml"}:
             raise ValueError("网址返回的不是可读取网页")
-        payload = response.read(MAX_RESPONSE_BYTES + 1)
-        if len(payload) > MAX_RESPONSE_BYTES:
+        payload = response.read(MAX_WEB_RESPONSE_BYTES + 1)
+        if len(payload) > MAX_WEB_RESPONSE_BYTES:
             raise ValueError("网页内容超过 2 MiB 限制")
         charset = response.headers.get_content_charset() or "utf-8"
         html = payload.decode(charset, errors="replace")

@@ -180,7 +180,7 @@ def collect_url(payload: UrlCollectRequest):
 async def collect_file(file: UploadFile = File(...)):
     filename = file.filename or "upload.txt"
     try:
-        payload = await file.read(collect_content.MAX_RESPONSE_BYTES + 1)
+        payload = await file.read(collect_content.MAX_UPLOAD_BYTES + 1)
         result = collect_content.collect_uploaded_file(filename, payload)
         return collected_response(result)
     except (UnicodeError, ValueError) as error:

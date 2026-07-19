@@ -1,7 +1,7 @@
 :root {
-  font-family: Inter, "Microsoft YaHei", Arial, sans-serif;
-  color: #202624;
-  background: #f4f6f5;
+  font-family: Inter, "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+  color: #211f23;
+  background: #f3f1ed;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -14,6 +14,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: #f3f1ed;
 }
 
 button,

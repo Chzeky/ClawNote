@@ -25,7 +25,7 @@ OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
 - `POST /api/knowledge/text`: parameterized text knowledge storage.
 - `POST /api/knowledge/analyze`: isolated organizer Agent draft generation without storage.
 - `POST /api/collect/url`: safely collect public webpage text without storage.
-- `POST /api/collect/file`: extract an uploaded UTF-8 TXT/Markdown file without storage.
+- `POST /api/collect/file`: extract an uploaded UTF-8 TXT/Markdown file up to 10 MiB without storage.
 - `GET /api/knowledge/{id}`: complete knowledge detail.
 - `PATCH /api/knowledge/{id}`: partial title, content, summary, category, or tag update.
 - `DELETE /api/knowledge/{id}`: delete one knowledge item and its synchronized FTS row.

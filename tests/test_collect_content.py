@@ -42,6 +42,11 @@ class CollectContentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             collect_content.collect_uploaded_file("secret.exe", b"binary")
 
+    def test_rejects_uploaded_file_over_10_mib(self):
+        payload = b"x" * (collect_content.MAX_UPLOAD_BYTES + 1)
+        with self.assertRaisesRegex(ValueError, "10 MiB"):
+            collect_content.collect_uploaded_file("large-note.txt", payload)
+
     def test_extract_html_ignores_script_and_style(self):
         title, content = collect_content.extract_html(
             "<html><head><title>文章</title><style>bad</style></head>"
@@ -80,6 +85,22 @@ class CollectContentTests(unittest.TestCase):
                 {},
                 "http://127.0.0.1/private",
             )
+
+    def test_preserves_https_for_same_host_downgrade_redirect(self):
+        handler = collect_content.SafeRedirectHandler()
+        request = collect_content.Request("https://example.com/article")
+        with patch.object(collect_content, "validate_public_url") as validate:
+            redirected = handler.redirect_request(
+                request,
+                None,
+                301,
+                "Moved Permanently",
+                {},
+                "http://example.com/article/",
+            )
+
+        self.assertEqual("https://example.com/article/", redirected.full_url)
+        validate.assert_called_once_with("https://example.com/article/")
 
     def test_allows_proxy_fake_ip_for_domain_name(self):
         fake_result = [(2, 1, 6, "", ("198.18.0.10", 443))]

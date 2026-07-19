@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   AlignLeft, ArrowLeft, BookOpen, ChevronRight, CircleGauge, Compass,
-  Database, FileUp, FolderTree, Layers3, Link2, MessageCircle, Network,
+  Database, FileUp, FolderTree, Link2, MessageCircle, Network,
   Pencil, Plus, Save, Search, Send, Sparkles, Tag, Trash2, X,
 } from 'lucide-react'
 import './App.css'
@@ -10,6 +10,7 @@ import KnowledgeBubbleGraph from './KnowledgeBubbleGraph'
 const API_BASE = 'http://127.0.0.1:8000'
 const IMPORT_DRAFT_KEY = 'clawnote.import-draft'
 const REQUEST_TIMEOUT_MS = 20000
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 const EMPTY_CREATE_FORM = {
   title: '',
@@ -401,6 +402,18 @@ function App() {
     setCreateForm((current) => ({ ...current, [name]: value }))
   }
 
+  function handleFileChange(event) {
+    const file = event.target.files?.[0] || null
+    if (file && file.size > MAX_UPLOAD_BYTES) {
+      event.target.value = ''
+      setSelectedFile(null)
+      setCreateError('文件不能超过 10 MiB')
+      return
+    }
+    setCreateError('')
+    setSelectedFile(file)
+  }
+
   function changeImportMode(mode) {
     setImportMode(mode)
     setCreateError('')
@@ -643,7 +656,10 @@ function App() {
     <main>
       <header className="app-header">
         <div className="brand-lockup">
-          <span className="brand-mark"><Layers3 size={22} /></span>
+          <span className="brand-mark" aria-hidden="true">
+            <BookOpen className="brand-book" size={24} />
+            <Sparkles className="brand-spark" size={11} />
+          </span>
           <div><h1>ClawNote</h1><p>个人智能知识管家</p></div>
         </div>
         <div className="header-actions">
@@ -1154,9 +1170,9 @@ function App() {
                   {importMode === 'file' && (
                     <label className="file-field">选择文件
                       <input type="file" accept=".txt,.md,text/plain,text/markdown"
-                        onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                        onChange={handleFileChange}
                         autoFocus />
-                      <span>{selectedFile ? selectedFile.name : '支持 UTF-8 TXT、Markdown，最大 2 MiB'}</span>
+                      <span>{selectedFile ? selectedFile.name : '支持 UTF-8 TXT、Markdown，最大 10 MiB'}</span>
                     </label>
                   )}
 
