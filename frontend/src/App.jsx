@@ -6,6 +6,15 @@ import {
 import './App.css'
 
 const API_BASE = 'http://127.0.0.1:8000'
+const IMPORT_DRAFT_KEY = 'clawnote.import-draft'
+
+const EMPTY_CREATE_FORM = {
+  title: '',
+  category: '未分类',
+  summary: '',
+  content: '',
+  tags: '',
+}
 
 async function requestKnowledge(searchQuery = '') {
   const endpoint = searchQuery
@@ -39,6 +48,18 @@ const EMPTY_SOURCE = {
   content_type: 'text',
 }
 
+function loadImportDraft() {
+  try {
+    const value = sessionStorage.getItem(IMPORT_DRAFT_KEY)
+    return value ? JSON.parse(value) : null
+  } catch {
+    sessionStorage.removeItem(IMPORT_DRAFT_KEY)
+    return null
+  }
+}
+
+const SAVED_IMPORT = loadImportDraft()
+
 function App() {
   const [items, setItems] = useState([])
   const [query, setQuery] = useState('')
@@ -53,25 +74,19 @@ function App() {
   const [deleting, setDeleting] = useState(false)
   const [actionError, setActionError] = useState('')
   const [notice, setNotice] = useState('')
-  const [createOpen, setCreateOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(Boolean(SAVED_IMPORT))
   const [creating, setCreating] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [processingLabel, setProcessingLabel] = useState('')
-  const [createStep, setCreateStep] = useState('input')
-  const [importMode, setImportMode] = useState('text')
+  const [createStep, setCreateStep] = useState(SAVED_IMPORT?.createStep || 'input')
+  const [importMode, setImportMode] = useState(SAVED_IMPORT?.importMode || 'text')
   const [createError, setCreateError] = useState('')
-  const [titleHint, setTitleHint] = useState('')
-  const [webUrl, setWebUrl] = useState('')
+  const [titleHint, setTitleHint] = useState(SAVED_IMPORT?.titleHint || '')
+  const [webUrl, setWebUrl] = useState(SAVED_IMPORT?.webUrl || '')
   const [selectedFile, setSelectedFile] = useState(null)
-  const [importSource, setImportSource] = useState(EMPTY_SOURCE)
-  const [importNotice, setImportNotice] = useState('')
-  const [createForm, setCreateForm] = useState({
-    title: '',
-    category: '未分类',
-    summary: '',
-    content: '',
-    tags: '',
-  })
+  const [importSource, setImportSource] = useState(SAVED_IMPORT?.importSource || EMPTY_SOURCE)
+  const [importNotice, setImportNotice] = useState(SAVED_IMPORT?.importNotice || '')
+  const [createForm, setCreateForm] = useState(SAVED_IMPORT?.createForm || EMPTY_CREATE_FORM)
   const [editForm, setEditForm] = useState({
     title: '',
     category: '',
@@ -126,6 +141,25 @@ function App() {
     }
   }, [detailOpen, createOpen])
 
+  useEffect(() => {
+    if (!createOpen) {
+      sessionStorage.removeItem(IMPORT_DRAFT_KEY)
+      return
+    }
+    sessionStorage.setItem(IMPORT_DRAFT_KEY, JSON.stringify({
+      createStep,
+      importMode,
+      titleHint,
+      webUrl,
+      importSource,
+      importNotice,
+      createForm,
+    }))
+  }, [
+    createOpen, createStep, importMode, titleHint, webUrl,
+    importSource, importNotice, createForm,
+  ])
+
   async function openDetail(knowledgeId) {
     setCreateOpen(false)
     setDetailOpen(true)
@@ -164,13 +198,7 @@ function App() {
     setImportSource(EMPTY_SOURCE)
     setImportNotice('')
     setProcessingLabel('')
-    setCreateForm({
-      title: '',
-      category: '未分类',
-      summary: '',
-      content: '',
-      tags: '',
-    })
+    setCreateForm(EMPTY_CREATE_FORM)
     setCreateOpen(true)
   }
 
