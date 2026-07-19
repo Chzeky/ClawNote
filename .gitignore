@@ -1,0 +1,17 @@
+data/*.db
+data/*.db-*
+*.sqlite
+__pycache__/
+.pytest_cache/
+.env
+*.log
+openclaw-workspace-state.json
+memory/
+archive/
+node_modules/
+skills_backup_*/
+agents/*/HEARTBEAT.md
+agents/*/USER.md
+agents/*/TOOLS.md
+agents/*/IDENTITY.md
+!agents/steward/IDENTITY.md

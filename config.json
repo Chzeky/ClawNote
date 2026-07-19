@@ -1,0 +1,64 @@
+{
+  "project": {
+    "name": "ClawNote",
+    "description": "基于 OpenClaw 多 Agent 协作的个人智能知识管家",
+    "version": "0.1.0",
+    "language": "zh-CN"
+  },
+  "entry_agent": "clawnote-steward",
+  "agents": [
+    {
+      "id": "clawnote-steward",
+      "workspace": "agents/steward",
+      "skills": [],
+      "routes_to": [
+        "clawnote-collector",
+        "clawnote-organizer",
+        "clawnote-graph",
+        "clawnote-qa",
+        "clawnote-recommender"
+      ]
+    },
+    {
+      "id": "clawnote-collector",
+      "workspace": "agents/collector",
+      "skills": ["collect-knowledge"]
+    },
+    {
+      "id": "clawnote-organizer",
+      "workspace": "agents/organizer",
+      "skills": ["organize-knowledge"]
+    },
+    {
+      "id": "clawnote-graph",
+      "workspace": "agents/graph",
+      "skills": ["build-knowledge-graph"]
+    },
+    {
+      "id": "clawnote-qa",
+      "workspace": "agents/qa",
+      "skills": ["knowledge-qa"]
+    },
+    {
+      "id": "clawnote-recommender",
+      "workspace": "agents/recommender",
+      "skills": ["recommend-knowledge"]
+    }
+  ],
+  "workflow": {
+    "ingest": ["clawnote-collector", "clawnote-organizer"],
+    "answer": ["clawnote-qa"],
+    "enrich": ["clawnote-graph", "clawnote-recommender"]
+  },
+  "storage": {
+    "engine": "sqlite",
+    "database": "data/clawnote.db",
+    "schema": "database/init.sql"
+  },
+  "channels": {
+    "feishu": {
+      "enabled": true,
+      "credentials": "REDACTED: managed outside this repository"
+    }
+  }
+}

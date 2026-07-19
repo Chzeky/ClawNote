@@ -1,0 +1,49 @@
+{
+  "description": "ClawNote Agent 最小权限策略（已脱敏）",
+  "agents": {
+    "clawnote-steward": {
+      "allow": [
+        "read",
+        "write",
+        "exec",
+        "web_search",
+        "web_fetch",
+        "sessions_spawn",
+        "sessions_yield",
+        "subagents"
+      ],
+      "deny": [],
+      "subagents": [
+        "clawnote-collector",
+        "clawnote-organizer",
+        "clawnote-graph",
+        "clawnote-qa",
+        "clawnote-recommender"
+      ]
+    },
+    "clawnote-collector": {
+      "allow": ["read", "write", "exec", "web_fetch", "web_search"],
+      "deny": []
+    },
+    "clawnote-organizer": {
+      "allow": ["read", "write", "exec"],
+      "deny": []
+    },
+    "clawnote-graph": {
+      "allow": ["read", "write"],
+      "deny": ["exec"]
+    },
+    "clawnote-qa": {
+      "allow": ["read", "exec"],
+      "deny": ["write", "edit", "web_search"]
+    },
+    "clawnote-recommender": {
+      "allow": ["read"],
+      "deny": ["write", "edit", "exec"]
+    }
+  },
+  "secrets": {
+    "included": false,
+    "managed_in": "~/.openclaw/openclaw.json and system environment"
+  }
+}
