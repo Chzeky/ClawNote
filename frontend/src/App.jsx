@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   AlignLeft, ArrowLeft, BookOpen, ChevronRight, CircleGauge, Compass,
   Database, FileUp, FolderTree, Link2, MessageCircle, Network,
@@ -99,6 +99,14 @@ function loadImportDraft() {
   } catch {
     sessionStorage.removeItem(IMPORT_DRAFT_KEY)
     return null
+  }
+}
+
+function saveImportDraft(value) {
+  try {
+    sessionStorage.setItem(IMPORT_DRAFT_KEY, JSON.stringify(value))
+  } catch {
+    sessionStorage.removeItem(IMPORT_DRAFT_KEY)
   }
 }
 
@@ -215,6 +223,7 @@ function App() {
   const [qaMode, setQaMode] = useState('direct')
   const [asking, setAsking] = useState(false)
   const [qaError, setQaError] = useState('')
+  const createDrawerRef = useRef(null)
 
   async function loadInsights() {
     setInsightLoading(true)
@@ -341,7 +350,7 @@ function App() {
       sessionStorage.removeItem(IMPORT_DRAFT_KEY)
       return
     }
-    sessionStorage.setItem(IMPORT_DRAFT_KEY, JSON.stringify({
+    saveImportDraft({
       createStep,
       importMode,
       titleHint,
@@ -349,11 +358,17 @@ function App() {
       importSource,
       importNotice,
       createForm,
-    }))
+    })
   }, [
     createOpen, createStep, importMode, titleHint, webUrl,
     importSource, importNotice, createForm,
   ])
+
+  useEffect(() => {
+    if (createOpen && createStep === 'preview') {
+      createDrawerRef.current?.scrollTo({ top: 0 })
+    }
+  }, [createOpen, createStep])
 
   async function openDetail(knowledgeId) {
     setCreateOpen(false)
@@ -531,9 +546,9 @@ function App() {
       const data = await response.json()
       if (!response.ok) throw new Error(responseError(data, response.status))
       setCreateOpen(false)
-      setNotice(`知识 #${data.knowledge_id} 已创建`)
-      await Promise.all([loadKnowledge(query.trim()), loadInsights()])
+      setNotice(`知识 #${data.display_order ?? data.knowledge_id} 已创建`)
       await openDetail(data.knowledge_id)
+      await Promise.all([loadKnowledge(query.trim()), loadInsights()])
     } catch (requestError) {
       setCreateError(requestError.message)
     } finally {
@@ -583,7 +598,7 @@ function App() {
           : item
       )))
       setEditing(false)
-      setNotice(`知识 #${data.item.id} 已更新`)
+      setNotice(`知识 #${data.item.display_order ?? data.item.id} 已更新`)
       loadInsights()
     } catch (requestError) {
       setActionError(requestError.message)
@@ -602,10 +617,9 @@ function App() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.detail || `请求失败：${response.status}`)
-      setItems((current) => current.filter((item) => item.id !== selectedItem.id))
-      setNotice(`知识 #${selectedItem.id} 已删除`)
+      setNotice(`知识 #${selectedItem.display_order ?? selectedItem.id} 已删除`)
       closeDetail()
-      loadInsights()
+      await Promise.all([loadKnowledge(query.trim()), loadInsights()])
     } catch (requestError) {
       setActionError(requestError.message)
     } finally {
@@ -801,7 +815,8 @@ function App() {
               <li key={item.id}>
                 <button className="knowledge-row" type="button" onClick={() => openDetail(item.id)}>
                   <div className="knowledge-title">
-                    <strong>{item.title}</strong><small>知识 #{item.id}</small>
+                    <strong>{item.title}</strong>
+                    <small>知识 #{item.display_order ?? item.id}</small>
                   </div>
                   <span className="category">{item.category}</span>
                   <div className="tags">
@@ -1087,7 +1102,7 @@ function App() {
           <aside className="detail-drawer" role="dialog" aria-modal="true"
             aria-label="知识详情" onMouseDown={(event) => event.stopPropagation()}>
             <div className="detail-heading">
-              <div><span>知识详情</span><strong>{selectedItem ? `#${selectedItem.id}` : ''}</strong></div>
+              <div><span>知识详情</span><strong>{selectedItem ? `#${selectedItem.display_order ?? selectedItem.id}` : ''}</strong></div>
               <button className="drawer-close" type="button" onClick={closeDetail}
                 title="关闭详情" aria-label="关闭详情"><X size={20} /></button>
             </div>
@@ -1162,7 +1177,7 @@ function App() {
 
       {createOpen && (
         <div className="drawer-backdrop" onMouseDown={closeCreate}>
-          <aside className="detail-drawer" role="dialog" aria-modal="true"
+          <aside ref={createDrawerRef} className="detail-drawer" role="dialog" aria-modal="true"
             aria-label="新增知识" onMouseDown={(event) => event.stopPropagation()}>
             <div className="detail-heading">
               <div><span>新增知识</span></div>

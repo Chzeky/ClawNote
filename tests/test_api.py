@@ -94,6 +94,41 @@ class KnowledgeApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(missing_get.status_code, 404)
         self.assertEqual(missing_delete.status_code, 404)
 
+    async def test_display_order_stays_contiguous_after_delete_and_create(self):
+        created_ids = []
+        for title in ("First", "Second", "Third"):
+            response = await self.client.post(
+                "/api/knowledge/text",
+                json={
+                    "title": title,
+                    "content": f"{title} content for display order.",
+                    "category": "test",
+                    "tags": [],
+                },
+            )
+            self.assertEqual(response.status_code, 201)
+            created_ids.append(response.json()["knowledge_id"])
+
+        await self.client.delete(f"/api/knowledge/{created_ids[1]}")
+        replacement = await self.client.post(
+            "/api/knowledge/text",
+            json={
+                "title": "Replacement",
+                "content": "Replacement content for display order.",
+                "category": "test",
+                "tags": [],
+            },
+        )
+
+        self.assertEqual(replacement.status_code, 201)
+        self.assertEqual(replacement.json()["display_order"], 3)
+        response = await self.client.get("/api/knowledge", params={"limit": 20})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item["display_order"] for item in response.json()["items"]],
+            [3, 2, 1],
+        )
+
     async def test_analyze_returns_organizer_draft_without_storing(self):
         draft = KnowledgeDraft(
             title="RAG 检索增强生成",

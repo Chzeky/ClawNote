@@ -204,9 +204,14 @@ def list_knowledge(
     limit: int = Query(default=20, ge=1, le=100),
 ):
     sql = """
-        SELECT id, title, category, tags, source, created_at
-        FROM knowledge_items
-        ORDER BY id DESC
+        SELECT k.id, k.title, k.category, k.tags, k.source, k.created_at,
+               (
+                   SELECT COUNT(*)
+                   FROM knowledge_items AS ranked
+                   WHERE ranked.id <= k.id
+               ) AS display_order
+        FROM knowledge_items AS k
+        ORDER BY k.id DESC
         LIMIT ?
     """
 
@@ -242,7 +247,12 @@ def search_knowledge(
 
     fts_sql = """
         SELECT k.id, k.title, k.summary, k.category,
-               k.tags, k.source, k.source_url, k.content
+               k.tags, k.source, k.source_url, k.content,
+               (
+                   SELECT COUNT(*)
+                   FROM knowledge_items AS ranked
+                   WHERE ranked.id <= k.id
+               ) AS display_order
         FROM knowledge_fts
         JOIN knowledge_items AS k
           ON k.id = knowledge_fts.rowid
@@ -271,9 +281,14 @@ def search_knowledge(
             pattern = f"%{escaped}%"
 
             like_sql = """
-                SELECT id, title, summary, category,
-                       tags, source, source_url, content
-                FROM knowledge_items
+                SELECT k.id, k.title, k.summary, k.category,
+                       k.tags, k.source, k.source_url, k.content,
+                       (
+                           SELECT COUNT(*)
+                           FROM knowledge_items AS ranked
+                           WHERE ranked.id <= k.id
+                       ) AS display_order
+                FROM knowledge_items AS k
                 WHERE title LIKE ? ESCAPE '\\'
                    OR content LIKE ? ESCAPE '\\'
                    OR summary LIKE ? ESCAPE '\\'
@@ -338,11 +353,15 @@ def create_text_knowledge(payload: TextKnowledgeCreate):
         cursor = connection.execute(sql, values)
         connection.commit()
         knowledge_id = cursor.lastrowid
+        display_order = connection.execute(
+            "SELECT COUNT(*) FROM knowledge_items"
+        ).fetchone()[0]
 
     return {
         "success": True,
         "stored": True,
         "knowledge_id": knowledge_id,
+        "display_order": display_order,
     }
 
 
@@ -367,9 +386,14 @@ def serialize_knowledge(row):
 @app.get("/api/knowledge/{knowledge_id}")
 def get_knowledge_item(knowledge_id: int):
     sql = """
-        SELECT *
-        FROM knowledge_items
-        WHERE id = ?
+        SELECT k.*,
+               (
+                   SELECT COUNT(*)
+                   FROM knowledge_items AS ranked
+                   WHERE ranked.id <= k.id
+               ) AS display_order
+        FROM knowledge_items AS k
+        WHERE k.id = ?
     """
 
     with closing(connect()) as connection:
@@ -460,7 +484,16 @@ def update_knowledge_item(
             )
 
         row = connection.execute(
-            "SELECT * FROM knowledge_items WHERE id = ?",
+            """
+                SELECT k.*,
+                       (
+                           SELECT COUNT(*)
+                           FROM knowledge_items AS ranked
+                           WHERE ranked.id <= k.id
+                       ) AS display_order
+                FROM knowledge_items AS k
+                WHERE k.id = ?
+            """,
             (knowledge_id,),
         ).fetchone()
         connection.commit()
