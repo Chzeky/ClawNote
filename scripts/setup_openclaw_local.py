@@ -12,6 +12,7 @@ import argparse
 import json
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,11 @@ def parse_args() -> argparse.Namespace:
         "--verify-openclaw",
         action="store_true",
         help="Run openclaw skills info checks after installation when openclaw is available.",
+    )
+    parser.add_argument(
+        "--register-openclaw",
+        action="store_true",
+        help="Register missing agents with OpenClaw using their project workspaces.",
     )
     return parser.parse_args()
 
@@ -152,29 +158,116 @@ def verify_openclaw(config: dict[str, Any]) -> list[dict[str, str]]:
     if not openclaw:
         return [{"status": "skipped", "message": "openclaw command not found in PATH"}]
 
-    checks: list[dict[str, str]] = []
-    for agent in config["agents"]:
-        agent_id = str(agent["id"])
-        for skill in agent.get("skills") or []:
-            command = [openclaw, "skills", "info", str(skill), "--agent", agent_id]
+    targets = [
+        (str(agent["id"]), str(skill))
+        for agent in config["agents"]
+        for skill in agent.get("skills") or []
+    ]
+
+    def check_skill(target: tuple[str, str]) -> dict[str, str]:
+        agent_id, skill = target
+        command = [openclaw, "skills", "info", skill, "--agent", agent_id]
+        try:
             completed = subprocess.run(
                 command,
                 check=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                timeout=15,
             )
-            checks.append(
-                {
-                    "agent": agent_id,
-                    "skill": str(skill),
-                    "status": "ok" if completed.returncode == 0 else "failed",
-                    "message": completed.stdout.strip().splitlines()[-1]
-                    if completed.stdout.strip()
-                    else "",
-                }
+        except subprocess.TimeoutExpired:
+            return {
+                "agent": agent_id,
+                "skill": skill,
+                "status": "timeout",
+                "message": "OpenClaw skill check exceeded 15 seconds",
+            }
+        return {
+            "agent": agent_id,
+            "skill": skill,
+            "status": "ok" if completed.returncode == 0 else "failed",
+            "message": completed.stdout.strip().splitlines()[-1]
+            if completed.stdout.strip()
+            else "",
+        }
+
+    if not targets:
+        return []
+    with ThreadPoolExecutor(max_workers=min(5, len(targets))) as executor:
+        return list(executor.map(check_skill, targets))
+
+
+def register_openclaw_agents(config: dict[str, Any]) -> list[dict[str, str]]:
+    openclaw = shutil.which("openclaw")
+    if not openclaw:
+        return [{"status": "skipped", "message": "openclaw command not found in PATH"}]
+
+    listed = subprocess.run(
+        [openclaw, "agents", "list", "--json"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if listed.returncode != 0:
+        return [{
+            "status": "failed",
+            "message": "could not list OpenClaw agents: " + listed.stdout.strip(),
+        }]
+
+    try:
+        existing_agents = {
+            str(agent["id"]): agent
+            for agent in json.loads(listed.stdout)
+            if isinstance(agent, dict) and agent.get("id")
+        }
+    except (json.JSONDecodeError, TypeError) as error:
+        return [{
+            "status": "failed",
+            "message": f"invalid response from openclaw agents list: {error}",
+        }]
+
+    results: list[dict[str, str]] = []
+    for agent in config["agents"]:
+        agent_id = str(agent["id"])
+        workspace = (PROJECT_ROOT / str(agent["workspace"])).resolve()
+        existing = existing_agents.get(agent_id)
+        if existing:
+            existing_workspace = Path(str(existing.get("workspace", ""))).expanduser()
+            matches = (
+                existing_workspace.is_absolute()
+                and existing_workspace.resolve() == workspace
             )
-    return checks
+            results.append({
+                "agent": agent_id,
+                "status": "ok" if matches else "workspace-mismatch",
+                "message": str(existing_workspace) if existing_workspace else "unknown workspace",
+            })
+            continue
+
+        completed = subprocess.run(
+            [
+                openclaw,
+                "agents",
+                "add",
+                agent_id,
+                "--non-interactive",
+                "--workspace",
+                str(workspace),
+                "--json",
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        results.append({
+            "agent": agent_id,
+            "status": "registered" if completed.returncode == 0 else "failed",
+            "message": completed.stdout.strip(),
+        })
+    return results
 
 
 def main() -> int:
@@ -206,6 +299,15 @@ def main() -> int:
         backup = f", backup={result['backup']}" if result.get("backup") else ""
         print(f"- {result['id']}: {result['status']} -> {result['destination']}{backup}")
 
+    if args.register_openclaw and not args.dry_run:
+        print("\nOpenClaw agent registration:")
+        for registration in register_openclaw_agents(config):
+            target = f"{registration['agent']}: " if "agent" in registration else ""
+            print(
+                f"- {target}{registration['status']} "
+                f"{registration.get('message', '')}".rstrip()
+            )
+
     if args.verify_openclaw and not args.dry_run:
         print("\nOpenClaw verification:")
         for check in verify_openclaw(config):
@@ -224,7 +326,10 @@ def main() -> int:
     print("1. Keep real credentials in ~/.openclaw/openclaw.json or environment variables.")
     print("2. Initialize ClawNote data with: python3 scripts/knowledge_db.py init")
     print("3. Start backend/frontend as described in README.md.")
-    print("4. Optional check: python3 scripts/setup_openclaw_local.py --verify-openclaw")
+    print(
+        "4. Register and verify: python3 scripts/setup_openclaw_local.py "
+        "--register-openclaw --verify-openclaw"
+    )
     return 0
 
 

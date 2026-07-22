@@ -86,6 +86,15 @@ ClawNote/
 
 ## 快速开始
 
+新电脑在安装并配置好 OpenClaw 后，可一键完成 Python/Node 依赖、数据库和六个 Agent 的本地接入：
+
+```bash
+cd ~/projects/ClawNote
+./scripts/bootstrap.sh
+```
+
+脚本会注册 `clawnote-steward` 及五个专业 Agent，但不会读取、复制或写入 API Key。模型与密钥仍由用户通过 `openclaw configure` 管理。已有同名 Agent 且确认需要替换时，使用 `./scripts/bootstrap.sh --force-agents`。
+
 已完成依赖安装后，可用一条命令同时启动前后端：
 
 ```bash
@@ -99,7 +108,7 @@ cd ~/projects/ClawNote
 
 ```bash
 python3 scripts/setup_openclaw_local.py --dry-run
-python3 scripts/setup_openclaw_local.py
+python3 scripts/setup_openclaw_local.py --register-openclaw --verify-openclaw
 ```
 
 脚本会根据 `config.json` 把 ClawNote 的六个 Agent 安装到 `~/.openclaw/agents`，只复制 `AGENTS.md`、`SOUL.md`、`IDENTITY.md` 和 `skills/`。它不会读取或写入真实 `~/.openclaw/openclaw.json`、API Key、Token、数据库、日志或运行记忆；如果本机已有同名 Agent，默认跳过，确认要替换时可使用 `--force`，旧目录会先备份到 `~/.openclaw/agents/.clawnote-backups/`。
@@ -149,6 +158,8 @@ TypeScript Skill：
 npm install
 npm test
 ```
+
+当前验证基线：Python 56 项、TypeScript/Jest 19 项，以及前端 ESLint 和 Vite production build。
 
 测试覆盖数据库初始化、参数化写入、CRUD API、AI 草稿解析与只读隔离、RAG 证据检索与严格输出、steward 路由校验、缓存复用与执行真实性、概览统计、分层 Web 图谱、标签推荐、SQL/命令注入防护、SSRF 边界、FTS5 检索、中文 `LIKE` 兜底、网页正文与 MathJax 清洗、引用来源、性能基线和 Skill 目录结构。当前 Python 54 项、TypeScript/Jest 19 项测试全部通过。
 

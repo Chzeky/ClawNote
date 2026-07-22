@@ -3,6 +3,8 @@ import re
 import runpy
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -80,6 +82,33 @@ class ProjectStructureTests(unittest.TestCase):
             "archive",
         }:
             self.assertIn(unsafe_name, runtime_names)
+
+    def test_openclaw_setup_registers_missing_agents_with_project_workspaces(self):
+        script_globals = runpy.run_path(str(PROJECT_ROOT / "scripts" / "setup_openclaw_local.py"))
+        register_agents = script_globals["register_openclaw_agents"]
+        config = {
+            "agents": [{
+                "id": "clawnote-test",
+                "workspace": "agents/steward",
+                "skills": [],
+            }],
+        }
+        responses = [
+            SimpleNamespace(returncode=0, stdout="[]"),
+            SimpleNamespace(returncode=0, stdout='{"id":"clawnote-test"}'),
+        ]
+
+        with patch("shutil.which", return_value="/usr/bin/openclaw"), patch(
+            "subprocess.run", side_effect=responses
+        ) as run_mock:
+            result = register_agents(config)
+
+        self.assertEqual(result[0]["status"], "registered")
+        register_command = run_mock.call_args_list[1].args[0]
+        self.assertEqual(register_command[:4], [
+            "/usr/bin/openclaw", "agents", "add", "clawnote-test",
+        ])
+        self.assertIn(str((PROJECT_ROOT / "agents" / "steward").resolve()), register_command)
 
 
 if __name__ == "__main__":

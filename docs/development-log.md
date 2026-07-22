@@ -169,3 +169,12 @@
 - 性能：关闭 steward thinking、压缩路由提示、复用稳定会话，并将成功决策缓存 15 分钟；并发冷请求通过异步锁合并，避免重复启动 OpenClaw。
 - 展示：回答内显示 Steward 到 QA Agent 的执行轨迹，并区分“实时”“复用”和“执行”状态；桌面与移动端均使用紧凑双模式控件。
 - 验证：Python 54 项、TypeScript/Jest 19 项、前端 ESLint 和 Vite production build 全部通过。
+
+## 2026-07-22：一键启动与 OpenClaw 本地接入
+
+- 启动：新增 `scripts/dev.sh`，一个终端同时启动 FastAPI 与 Vite，按 Ctrl+C 可同时清理两个进程。
+- 部署：新增 `scripts/bootstrap.sh`，串联虚拟环境、Python/Node 依赖、数据库初始化和 Agent 注册。
+- 注册：`setup_openclaw_local.py --register-openclaw` 使用 `openclaw agents add --workspace` 注册 Steward 与五个专业 Agent；已有 Agent 不覆盖，工作区不一致时会明确报告。
+- 安全：脚本不读取、复制或写入 `openclaw.json`、API Key 或 Token；模型凭据继续由 `openclaw configure` 管理。
+- 稳定性：Skill 验证改为并发执行，并为单项检查设置 15 秒超时，避免 OpenClaw 子命令长期阻塞。
+- 验证：完整 bootstrap 本机幂等执行约 27 秒；六个 Agent 与五个 Skill 全部通过；Python 56 项、TypeScript/Jest 19 项、前端 ESLint 和 Vite production build 全部通过。
