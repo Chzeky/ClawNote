@@ -86,6 +86,15 @@ ClawNote/
 
 ## 快速开始
 
+已完成依赖安装后，可用一条命令同时启动前后端：
+
+```bash
+cd ~/projects/ClawNote
+./scripts/dev.sh
+```
+
+浏览器访问 `http://localhost:5173`。在启动终端按 `Ctrl+C` 会同时停止前后端。
+
 一键接入本机 OpenClaw Agent/Skill：
 
 ```bash
